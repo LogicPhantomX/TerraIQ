@@ -307,23 +307,30 @@ export default function ScannerPage() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-4 gap-2 mb-2">
-              {[["Diseases","◉"],["Weeds","◈"],["Trees","◆"],["Pests","◎"]].map(([l,icon]) => (
-                <div key={l} className="bg-white dark:bg-dark-surface rounded-2xl p-3 text-center border border-deep-light dark:border-dark-light shadow-card">
-                  <div className="text-terra text-xl mb-1">{icon}</div>
-                  <p className="text-ink-500 dark:text-gray-400 text-xs">{l}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {[["🦠","Disease"],["🌿","Weeds"],["🐛","Pests"],["🔬","Nutrients"]].map(([icon,label]) => (
+                <div key={label} className="bg-white dark:bg-dark-surface rounded-2xl p-4 text-center border border-deep-light dark:border-dark-light shadow-card">
+                  <div className="text-2xl mb-2">{icon}</div>
+                  <p className="text-ink-500 dark:text-gray-400 text-xs font-medium">{label}</p>
                 </div>
               ))}
             </div>
-            <button onClick={() => setMode("camera")}
-              className="w-full bg-terra text-white h-16 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-terra-dark transition-colors shadow-md">
-              ◈ Open Vision Scanner
+            <button onClick={() => setMode("camera")} className="w-full bg-terra text-white h-16 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-terra-dark transition-colors shadow-md">
+              <span className="text-2xl">📷</span> {t("scanner.useCamera")}
             </button>
-            <button onClick={() => fileRef.current.click()}
-              className="w-full bg-white dark:bg-dark-surface border border-deep-light dark:border-dark-light text-ink dark:text-white h-14 rounded-2xl font-semibold flex items-center justify-center gap-3 hover:border-terra transition-colors shadow-card">
-              ◧ Upload Photo
+            <button onClick={() => fileRef.current.click()} className="w-full bg-white dark:bg-dark-surface border border-deep-light dark:border-dark-light text-ink dark:text-white h-14 rounded-2xl font-semibold flex items-center justify-center gap-3 hover:border-terra transition-colors shadow-card">
+              <span className="text-xl">🖼</span> {t("scanner.uploadPhoto")}
             </button>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            <div className="bg-terra-light dark:bg-terra/10 rounded-2xl p-4 border border-green-200 dark:border-terra/20">
+              <p className="text-terra font-semibold text-sm mb-2">📸 {t("scanner.tips")}</p>
+              <ul className="text-ink-500 dark:text-gray-400 text-sm space-y-1">
+                <li>• {t("scanner.tip1")}</li>
+                <li>• {t("scanner.tip2")}</li>
+                <li>• {t("scanner.tip3")}</li>
+                <li>• Only crop or plant images will be accepted</li>
+              </ul>
+            </div>
           </div>
         )}
 
