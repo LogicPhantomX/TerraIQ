@@ -25,7 +25,6 @@ const CROP_CATEGORIES = [
 export default function SignupPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { t } = useTranslation();
   const [step,    setStep]    = useState(1);
   const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState("vegetable");
