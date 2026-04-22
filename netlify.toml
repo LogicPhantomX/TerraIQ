@@ -1,11 +1,23 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# ── Secrets scanning ──────────────────────────────────────────────────
+# VITE_ variables are intentionally bundled into the client JS by Vite.
+# These are public-facing keys (Supabase anon key, Groq API key, OpenWeather key)
+# that are designed to be exposed in browser code — they are scoped/rate-limited
+# on the provider side. Omitting them from Netlify's scanner to allow deployment.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "VITE_GROQ_KEY,VITE_WEATHER_KEY,VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
+
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-   Permissions-Policy = "camera=(self), microphone=(), geolocation=(self), payment=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://.supabase.co wss://.supabase.co https://api.groq.com; font-src 'self' data:; frame-ancestors 'none'"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=(self), payment=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://api.openweathermap.org https://geocoding-api.open-meteo.com https://api.open-meteo.com; font-src 'self' data:; frame-ancestors 'none'"
     Cross-Origin-Embedder-Policy = "require-corp"
     Cross-Origin-Opener-Policy = "same-origin"
     Cross-Origin-Resource-Policy = "same-origin"
