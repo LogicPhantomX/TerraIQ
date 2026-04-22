@@ -93,7 +93,7 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <h1 className="text-ink dark:text-white text-3xl font-black mb-6">Profile</h1>
+      <h1 className="text-ink dark:text-white text-3xl font-black mb-6">{t("profile.title")}</h1>
 
       <div className="space-y-5 max-w-lg">
 
@@ -152,7 +152,7 @@ export default function ProfilePage() {
             ))}
           </div>
           <p className="text-ink-500 dark:text-gray-500 text-xs mt-3">
-            The page updates immediately when you tap — save to keep the change.
+            {t("profile.languageHint")}
           </p>
         </div>
 

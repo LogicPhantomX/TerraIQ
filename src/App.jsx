@@ -25,6 +25,7 @@ const IrrigationPage = lazy(() => import("@/pages/IrrigationPage"));
 const MarketPage = lazy(() => import("@/pages/AIPages").then(module => ({ default: module.MarketPage })));
 const AnalyticsPage = lazy(() => import("@/pages/AIPages").then(module => ({ default: module.AnalyticsPage })));
 const HistoryPage = lazy(() => import("@/pages/HistoryPage"));
+const CropGrowthPage = lazy(() => import("@/pages/CropGrowthPage"));
 
 // ── Syncs farmer's saved language from Supabase into the whole app ────
 function LanguageSync() {
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="/cooperative"   element={<Protected><CoopPage /></Protected>} />
             <Route path="/profile"       element={<Protected><ProfilePage /></Protected>} />
             <Route path="/history"       element={<Protected><HistoryPage /></Protected>} />
+            <Route path="/growth"        element={<Protected><CropGrowthPage /></Protected>} />
 
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />

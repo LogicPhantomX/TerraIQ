@@ -2,7 +2,6 @@
 // TerraIQ+ PDF Report Generator
 // Draws real bar charts + pie chart using jsPDF primitives
 // No $-sign math rendering issues — all text sanitized
-// npm install jspdf  (one time)
 
 import { jsPDF } from "jspdf";
 
@@ -22,12 +21,12 @@ const C = {
 
 // Parameter colors — each nutrient has its own color throughout the PDF
 const PCOL = {
-  nitrogen:       [59,  130, 246],   // blue
-  phosphorus:     [245, 158, 11],    // amber
-  potassium:      [249, 115, 22],    // orange
-  ph:             [139, 92,  246],   // purple
-  organic_carbon: [120, 53,  15],    // brown
-  moisture:       [6,   182, 212],   // cyan
+  nitrogen:       [59,  130, 246],
+  phosphorus:     [245, 158, 11],
+  potassium:      [249, 115, 22],
+  ph:             [139, 92,  246],
+  organic_carbon: [120, 53,  15],
+  moisture:       [6,   182, 212],
 };
 const PNAME = {
   nitrogen: "Nitrogen", phosphorus: "Phosphorus", potassium: "Potassium",
@@ -38,7 +37,6 @@ const PUNIT = {
   ph: "", organic_carbon: "%", moisture: "%",
 };
 
-// Score → percentage fill for bar
 const S2P = { 1: 14, 2: 34, 3: 64, 4: 90 };
 
 function levelRgb(level) {
@@ -49,19 +47,18 @@ function levelRgb(level) {
 }
 
 const RATING_RGB = { excellent:[22,163,74], good:[34,197,94], fair:[217,119,6], poor:[220,38,38] };
-const SEV_RGB    = { low:[34,197,94], moderate:[217,119,6], high:[234,88,12], critical:[220,38,38] };
+const SEV_RGB    = { none:[34,197,94], low:[34,197,94], moderate:[217,119,6], high:[234,88,12], critical:[220,38,38] };
 
-// ── Text sanitizer — remove $ signs that jsPDF renders as math ────────
+// ── Text sanitizer ────────────────────────────────────────────────────
 function safe(str) {
   if (str === null || str === undefined) return "";
   return String(str)
-    .replace(/\$/g, "")          // remove $ entirely
-    .replace(/₦/g, "NGN ")      // replace ₦ with NGN (jsPDF latin-1 safe)
+    .replace(/\$/g, "")
     .replace(/[^\x00-\xFF]/g, c => {
-      // Keep common extended latin, replace anything else
-      const map = { "₦":"NGN ", "–":"-", "—":"-", "\u2019":"'", "\u2018":"'", "\u201C":'"', "\u201D":'"' };
+      const map = { "\u20A6":"NGN ", "\u2013":"-", "\u2014":"-", "\u2019":"'", "\u2018":"'", "\u201C":'"', "\u201D":'"' };
       return map[c] ?? "";
     })
+    .replace(/NGN\s+/g, "NGN ")
     .trim();
 }
 
@@ -70,7 +67,6 @@ function naira(amount) {
   return `NGN ${Number(amount).toLocaleString("en-NG")}`;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────
 function ts() {
   return new Date().toLocaleString("en-NG", {
     day:"2-digit", month:"short", year:"numeric",
@@ -80,8 +76,8 @@ function ts() {
 
 function watermark(doc, W, H) {
   doc.saveGraphicsState();
-  doc.setGState(new doc.GState({ opacity: 0.38 }));
-  doc.setFontSize(80);
+  doc.setGState(new doc.GState({ opacity: 0.04 }));
+  doc.setFontSize(90);
   doc.setFont("helvetica","bold");
   doc.setTextColor(...C.green);
   doc.text("TerraIQ+", W/2, H/2, { align:"center", angle:35 });
@@ -91,13 +87,10 @@ function watermark(doc, W, H) {
 function pageHeader(doc, W, title, stamp) {
   doc.setFillColor(...C.green);
   doc.rect(0, 0, W, 22, "F");
-  // Logo
   doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
   doc.text("TerraIQ+", 14, 14);
-  // Title
   doc.setFontSize(9); doc.setFont("helvetica","normal");
   doc.text(safe(title), W/2, 14, { align:"center" });
-  // Timestamp
   doc.setFontSize(7.5);
   doc.text(stamp, W-14, 14, { align:"right" });
   return 30;
@@ -131,11 +124,11 @@ function wrap(doc, text, x, y, maxW, lh=5.2) {
 
 // ── CHART: Horizontal bar chart for soil parameters ───────────────────
 function drawBarChart(doc, x, y, params, classifications, W) {
-  const chartW = W - x*2;
-  const barH   = 8;
-  const gap    = 4;
-  const labelW = 52;
-  const valueW = 26;
+  const chartW   = W - x*2;
+  const barH     = 8;
+  const gap      = 4;
+  const labelW   = 52;
+  const valueW   = 26;
   const barAreaW = chartW - labelW - valueW - 6;
 
   const entries = Object.entries(PCOL).filter(([k]) => {
@@ -152,40 +145,32 @@ function drawBarChart(doc, x, y, params, classifications, W) {
     const val   = params[key];
     const pct   = cls ? (S2P[cls.score] ?? 50) : 50;
     const bRgb  = cls ? levelRgb(cls.level) : C.green;
-    const label = PNAME[key] ?? key;
     const unit  = PUNIT[key] ?? "";
     const lv    = cls?.label ?? "";
 
-    // Label
     doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
-    doc.text(safe(label), x, y + barH*0.65);
+    doc.text(safe(PNAME[key] ?? key), x, y + barH*0.65);
 
-    // Color dot
     doc.setFillColor(...rgb);
     doc.circle(x + labelW - 6, y + barH*0.5, 2, "F");
 
-    // Track
     const bx = x + labelW;
     doc.setFillColor(...C.grayL);
     doc.roundedRect(bx, y+1, barAreaW, barH-2, 1.5, 1.5, "F");
 
-    // Fill
     const fillW = Math.max(4, barAreaW * pct / 100);
     doc.setFillColor(...bRgb);
     doc.roundedRect(bx, y+1, fillW, barH-2, 1.5, 1.5, "F");
 
-    // Value text inside bar
     doc.setFontSize(6.5); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
     if (fillW > 20) doc.text(`${val}${unit}`, bx + fillW/2, y + barH*0.62, { align:"center" });
 
-    // Level badge right side
     const bvx = bx + barAreaW + 3;
     doc.setFillColor(...bRgb);
     doc.roundedRect(bvx, y+1, valueW, barH-2, 1.5, 1.5, "F");
     doc.setFontSize(5.5); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
     doc.text(safe(lv).toUpperCase(), bvx + valueW/2, y + barH*0.65, { align:"center" });
 
-    // Value outside bar if bar too small
     if (fillW <= 20) {
       doc.setFontSize(6.5); doc.setFont("helvetica","normal"); doc.setTextColor(...C.ink);
       doc.text(`${val}${unit}`, bx+2, y + barH*0.65);
@@ -202,31 +187,26 @@ function drawPieChart(doc, cx, cy, r, classifications) {
   const entries = Object.entries(PCOL).filter(([k]) => classifications?.[k]);
   if (!entries.length) return;
 
-  // Each slice = score/total * 360
   const scores = entries.map(([k]) => classifications[k]?.score ?? 2);
   const total  = scores.reduce((a,b) => a+b, 0) || 1;
-
-  let angle = -Math.PI / 2; // start at top
+  let angle    = -Math.PI / 2;
 
   entries.forEach(([key, rgb], i) => {
     const slice = (scores[i] / total) * Math.PI * 2;
     const end   = angle + slice;
     const mid   = angle + slice / 2;
-
-    // Draw slice using line segments (jsPDF has no native arc fill — simulate with triangle fan)
     const steps = Math.max(8, Math.round(slice * 20));
+
     doc.setFillColor(...rgb);
     doc.setDrawColor(...C.white);
     doc.setLineWidth(0.5);
 
-    // Build polygon points
     const pts = [[cx, cy]];
     for (let s = 0; s <= steps; s++) {
       const a = angle + (slice * s / steps);
       pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
     }
 
-    // Draw filled polygon
     doc.lines(
       pts.slice(1).map((p, idx) => {
         const prev = pts[idx];
@@ -235,7 +215,6 @@ function drawPieChart(doc, cx, cy, r, classifications) {
       pts[0][0], pts[0][1], [1,1], "FD"
     );
 
-    // Percentage label inside slice if big enough
     if (slice > 0.35) {
       const lx = cx + (r * 0.62) * Math.cos(mid);
       const ly = cy + (r * 0.62) * Math.sin(mid);
@@ -246,11 +225,10 @@ function drawPieChart(doc, cx, cy, r, classifications) {
     angle = end;
   });
 
-  // White center circle (donut)
+  // Donut hole
   doc.setFillColor(...C.white);
   doc.circle(cx, cy, r * 0.38, "F");
 
-  // Center label
   doc.setFontSize(6); doc.setFont("helvetica","bold"); doc.setTextColor(...C.green);
   doc.text("SOIL", cx, cy-1, { align:"center" });
   doc.text("HEALTH", cx, cy+4, { align:"center" });
@@ -261,7 +239,7 @@ function drawPieLegend(doc, x, y, classifications) {
   const entries = Object.entries(PCOL).filter(([k]) => classifications?.[k]);
   entries.forEach(([key, rgb], i) => {
     const cls = classifications[key];
-    const ly  = y + i * 9;
+    const ly  = y + i * 10;
     doc.setFillColor(...rgb);
     doc.roundedRect(x, ly-3, 5, 5, 1, 1, "F");
     doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
@@ -269,10 +247,10 @@ function drawPieLegend(doc, x, y, classifications) {
     doc.setFont("helvetica","normal"); doc.setTextColor(...C.gray);
     doc.text(safe(cls?.label ?? ""), x+7, ly+5.5);
   });
-  return y + entries.length * 9 + 4;
+  return y + entries.length * 10 + 4;
 }
 
-// ── CHART: Mini bar chart for scan confidence ─────────────────────────
+// ── CHART: Mini confidence gauge ──────────────────────────────────────
 function drawConfidenceGauge(doc, x, y, confidence, W) {
   const trackW = W - x*2;
   const conf   = Math.min(100, Math.max(0, +confidence || 0));
@@ -287,7 +265,6 @@ function drawConfidenceGauge(doc, x, y, confidence, W) {
   doc.setFillColor(...rgb);
   doc.roundedRect(x, y, trackW * conf/100, 5, 2, 2, "F");
 
-  // Tick marks at 60% and 80%
   [60, 80].forEach(pct => {
     const tx = x + trackW * pct/100;
     doc.setDrawColor(...C.white); doc.setLineWidth(0.5);
@@ -327,7 +304,6 @@ export async function generateSoilReport({ params, result, farmerName, location 
   doc.roundedRect(14, y, W-28, 22, 3, 3, "F");
   doc.setDrawColor(...C.green); doc.setLineWidth(0.3);
   doc.roundedRect(14, y, W-28, 22, 3, 3, "D");
-
   doc.setFontSize(8.5); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
   doc.text("Farmer:", 19, y+8);
   doc.setFont("helvetica","normal");
@@ -340,8 +316,6 @@ export async function generateSoilReport({ params, result, farmerName, location 
   doc.text("Date:", W/2+5, y+8);
   doc.setFont("helvetica","normal");
   doc.text(stamp, W/2+18, y+8);
-
-  // Rating badge
   const rRgb = RATING_RGB[result?.rating] ?? RATING_RGB.fair;
   doc.setFillColor(...rRgb);
   doc.roundedRect(W-52, y+6, 32, 10, 2.5, 2.5, "F");
@@ -354,24 +328,23 @@ export async function generateSoilReport({ params, result, farmerName, location 
   y = wrap(doc, result?.summary, 18, y, W-36);
   y += 5;
 
-  // ── COLOR LEGEND ──────────────────────────────────────────────────
+  // ── Color legend ──────────────────────────────────────────────────
   checkY(22);
   y = secHead(doc, 14, y, "PARAMETER COLOR LEGEND", W);
   const paramKeys = Object.keys(PCOL).filter(k => params?.[k] !== undefined && params?.[k] !== "" && +params?.[k] !== 0);
-  const cols3 = Math.ceil(paramKeys.length / 2);
+  const legendRows = Math.ceil(paramKeys.length / 2);
   paramKeys.forEach((key, i) => {
     const col = i % 2;
     const row = Math.floor(i / 2);
-    const lx = 18 + col * ((W-36)/2);
-    const ly = y + row * 8;
+    const lx  = 18 + col * ((W-36)/2);
+    const ly  = y + row * 8;
     doc.setFillColor(...PCOL[key]);
     doc.circle(lx, ly-1, 2.2, "F");
     doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(...C.ink);
     doc.text(`${PNAME[key]}${PUNIT[key] ? " (" + PUNIT[key] + ")" : ""}`, lx+5, ly);
   });
-  y += cols3 * 8 + 4;
+  y += legendRows * 8 + 4;
 
-  // Status level legend
   const lvLegend = [
     [C.red,    "Critical / Too High"],
     [C.orange, "Low"],
@@ -387,91 +360,84 @@ export async function generateSoilReport({ params, result, farmerName, location 
   });
   y += 8;
 
-  // ── BAR CHART ─────────────────────────────────────────────────────
+  // ── Bar chart ─────────────────────────────────────────────────────
   checkY(80);
   y = drawBarChart(doc, 14, y, params ?? {}, result?.classifications ?? {}, W);
 
-  // ── PIE CHART + LEGEND ────────────────────────────────────────────
-  checkY(70);
-  y = secHead(doc, 14, y, "SOIL HEALTH COMPOSITION (SCORE-WEIGHTED)", W);
-
+  // ── Pie chart + legend ────────────────────────────────────────────
   const cls = result?.classifications ?? {};
-  const pieR = 28;
-  const pieCX = 14 + pieR + 6;
-  const pieCY = y + pieR + 4;
+  if (Object.keys(cls).length > 0) {
+    const pieR = 26;
+    checkY(pieR * 2 + 24);
+    y = secHead(doc, 14, y, "SOIL HEALTH COMPOSITION (SCORE-WEIGHTED)", W);
 
-  drawPieChart(doc, pieCX, pieCY, pieR, cls);
+    const pieCX = 14 + pieR + 8;
+    const pieCY = y + pieR + 2;
+    drawPieChart(doc, pieCX, pieCY, pieR, cls);
 
-  const legendX = pieCX + pieR + 14;
-  drawPieLegend(doc, legendX, y + 4, cls);
+    // Legend sits right of the pie — only if it fits
+    const legendX = pieCX + pieR + 14;
+    if (legendX + 60 < W) {
+      drawPieLegend(doc, legendX, y + 2, cls);
+    } else {
+      // Fallback: legend below pie
+      const belowY = pieCY + pieR + 8;
+      drawPieLegend(doc, 18, belowY, cls);
+    }
 
-  y = pieCY + pieR + 10;
+    y = pieCY + pieR + 10;
+  }
 
-  // ── ACTUAL PARAMETER VALUES TABLE ─────────────────────────────────
+  // ── Measured values table ─────────────────────────────────────────
   checkY(40);
   y = secHead(doc, 14, y, "ACTUAL MEASURED VALUES", W);
 
-  // Table header
-  const cols = ["Parameter", "Value", "Unit", "Status", "Optimal Range"];
-  const cW   = [(W-28)*0.28, (W-28)*0.14, (W-28)*0.12, (W-28)*0.22, (W-28)*0.24];
+  const colHeaders = ["Parameter", "Value", "Unit", "Status", "Optimal Range"];
+  const cW = [(W-28)*0.28, (W-28)*0.14, (W-28)*0.12, (W-28)*0.22, (W-28)*0.24];
   let tx = 14;
 
   doc.setFillColor(...C.green);
   doc.rect(14, y-4, W-28, 8, "F");
   doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
-  cols.forEach((col, i) => {
-    doc.text(safe(col), tx+2, y);
-    tx += cW[i];
-  });
+  colHeaders.forEach((col, i) => { doc.text(safe(col), tx+2, y); tx += cW[i]; });
   y += 5;
 
-  // Table rows — real values with optimal ranges
   const OPTIMAL = {
-    nitrogen:       "20–40 mg/kg",
-    phosphorus:     "12–30 mg/kg",
-    potassium:      "80–180 mg/kg",
-    ph:             "5.5–6.8",
-    organic_carbon: "1.0–2.5%",
-    moisture:       "30–60%",
+    nitrogen:       "20-40 mg/kg",
+    phosphorus:     "12-30 mg/kg",
+    potassium:      "80-180 mg/kg",
+    ph:             "5.5-6.8",
+    organic_carbon: "1.0-2.5%",
+    moisture:       "30-60%",
   };
 
   Object.entries(PCOL).forEach(([key, rgb], i) => {
     const val = params?.[key];
     if (val === undefined || val === null || val === "" || +val === 0) return;
-    const c = cls[key];
-    const bRgb = c ? levelRgb(c.level) : C.green;
-
-    // Alternate row bg
-    if (i % 2 === 0) {
-      doc.setFillColor(245, 250, 247);
-      doc.rect(14, y-3.5, W-28, 8, "F");
-    }
+    const c2   = cls[key];
+    const bRgb = c2 ? levelRgb(c2.level) : C.green;
+    checkY(10);
+    if (i % 2 === 0) { doc.setFillColor(245,250,247); doc.rect(14, y-3.5, W-28, 8, "F"); }
 
     tx = 14;
     doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...rgb);
     doc.text(safe(PNAME[key]), tx+2, y); tx += cW[0];
-
-    doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
+    doc.setTextColor(...C.ink);
     doc.text(String(val), tx+2, y); tx += cW[1];
-
     doc.setFont("helvetica","normal"); doc.setTextColor(...C.gray);
     doc.text(safe(PUNIT[key]), tx+2, y); tx += cW[2];
-
-    // Status badge
     doc.setFillColor(...bRgb);
     doc.roundedRect(tx+1, y-3, cW[3]-4, 6, 1, 1, "F");
     doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
-    doc.text(safe(c?.label ?? "").toUpperCase(), tx + (cW[3]-4)/2 + 1, y, { align:"center" });
+    doc.text(safe(c2?.label ?? "").toUpperCase(), tx + (cW[3]-4)/2 + 1, y, { align:"center" });
     tx += cW[3];
-
     doc.setFont("helvetica","normal"); doc.setTextColor(...C.gray);
-    doc.text(safe(OPTIMAL[key] ?? "—"), tx+2, y);
-
+    doc.text(safe(OPTIMAL[key] ?? "-"), tx+2, y);
     y += 8;
   });
   y += 4;
 
-  // ── RECOMMENDED CROPS ─────────────────────────────────────────────
+  // ── Recommended crops ─────────────────────────────────────────────
   const crops = (result?.best_crops ?? []).map(c => safe(c)).filter(Boolean);
   if (crops.length) {
     checkY(22);
@@ -482,39 +448,55 @@ export async function generateSoilReport({ params, result, farmerName, location 
       const cy2 = y + Math.floor(i / perRow) * 9;
       doc.setFillColor(220, 245, 225);
       doc.roundedRect(cx2-2, cy2-4.5, (W-36)/perRow - 2, 7, 2, 2, "F");
-      doc.setFontSize(7.5); doc.setFont("helvetica","semibold"); doc.setTextColor(...C.green);
-      doc.text(crop, cx2, cy2, { maxWidth: (W-36)/perRow - 4 });
+      doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(...C.green);
+      doc.text(safe(crop), cx2, cy2, { maxWidth: (W-36)/perRow - 4 });
     });
     y += Math.ceil(crops.length / perRow) * 9 + 6;
   }
 
-  // ── FERTILIZER RECOMMENDATIONS ────────────────────────────────────
+  // ── Fertilizer recommendations ────────────────────────────────────
+  // FIX: handles both "supplement" and "supplements" key variants from AI
   const fert = result?.fertilizer_recommendation ?? {};
   const fertItems = [
     { key:"synthetic",   label:"Synthetic Fertilizer",      bg:[255,251,235] },
     { key:"compost",     label:"Allamanda Compost",         bg:[240,253,244] },
     { key:"biochar",     label:"Allamanda Biochar",         bg:[254,243,199] },
+    { key:"supplement",  label:"Allamanda Soil Supplement", bg:[254,232,232] },
     { key:"supplements", label:"Allamanda Soil Supplement", bg:[254,232,232] },
   ];
-  if (fertItems.some(f => fert[f.key])) {
+  const seen = new Set();
+  const fertToRender = fertItems.filter(({ key }) => {
+    if (!fert[key]) return false;
+    const dk = key.replace(/s$/, "");
+    if (seen.has(dk)) return false;
+    seen.add(dk);
+    return true;
+  });
+
+  if (fertToRender.length) {
     checkY(30);
     y = secHead(doc, 14, y, "FERTILIZER RECOMMENDATIONS", W);
-    fertItems.forEach(({ key, label, bg }) => {
+    fertToRender.forEach(({ key, label, bg }) => {
       const item = fert[key]; if (!item) return;
-      checkY(22);
+      checkY(28);
+      const desc = [
+        item.description, item.benefit, item.benefit_for_this_soil,
+        item.rate && `Rate: ${item.rate}`,
+        item.timing && `Timing: ${item.timing}`,
+      ].filter(Boolean).map(safe).join(" · ");
+      const descLines = doc.splitTextToSize(safe(desc), W-40);
+      const boxH = descLines.length * 5.2 + 16;
       doc.setFillColor(...bg);
-      doc.roundedRect(14, y, W-28, 20, 2, 2, "F");
+      doc.roundedRect(14, y, W-28, boxH, 2, 2, "F");
       doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
       doc.text(safe(item.name ?? label), 18, y+7);
-      const desc = [item.description, item.benefit, item.benefit_for_this_soil, item.rate && `Rate: ${item.rate}`, item.timing]
-        .filter(Boolean).map(safe).join(" · ");
       doc.setFont("helvetica","normal"); doc.setTextColor(...C.gray);
       y = wrap(doc, desc, 18, y+13, W-36);
-      y += 4;
+      y += 6;
     });
   }
 
-  // ── IMPROVEMENT STEPS ─────────────────────────────────────────────
+  // ── Improvement action plan ───────────────────────────────────────
   const steps = result?.improvement_steps ?? [];
   if (steps.length) {
     checkY(30);
@@ -529,37 +511,43 @@ export async function generateSoilReport({ params, result, farmerName, location 
     });
   }
 
-  // ── URGENT ACTIONS ────────────────────────────────────────────────
+  // ── Urgent actions ────────────────────────────────────────────────
   const urgent = result?.urgent_actions ?? [];
   if (urgent.length) {
     checkY(20);
     y = secHead(doc, 14, y, "URGENT ACTIONS REQUIRED", W);
     doc.setFillColor(254,226,226);
-    doc.roundedRect(14, y, W-28, urgent.length*9+6, 2, 2, "F");
+    doc.roundedRect(14, y, W-28, urgent.length*10+6, 2, 2, "F");
     urgent.forEach(action => {
+      checkY(12);
       doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(185,28,28);
-      y = wrap(doc, `• ${action}`, 18, y+3, W-36); y += 2;
+      y = wrap(doc, `• ${safe(action)}`, 18, y+4, W-36); y += 2;
     });
     y += 4;
   }
 
-  // ── SEASON ADVICE ─────────────────────────────────────────────────
+  // ── Season planting advice ─────────────────────────────────────────
   if (result?.season_advice) {
-    checkY(20);
+    checkY(24);
     y = secHead(doc, 14, y, "SEASON PLANTING ADVICE", W);
-    y = wrap(doc, result.season_advice, 18, y, W-36); y += 6;
+    doc.setFillColor(240, 249, 244);
+    const saLines = doc.splitTextToSize(safe(result.season_advice), W-40);
+    const saH = saLines.length * 5.2 + 12;
+    doc.roundedRect(14, y, W-28, saH, 2, 2, "F");
+    y = wrap(doc, result.season_advice, 18, y+7, W-36); y += 8;
   }
 
-  // ── WEED RISK ─────────────────────────────────────────────────────
+  // ── Weed risk ─────────────────────────────────────────────────────
   if (result?.weed_risk) {
-    checkY(16);
+    checkY(18);
+    y = secHead(doc, 14, y, "WEED RISK ASSESSMENT", W);
     const wRgb = result.weed_risk==="high" ? C.red : result.weed_risk==="moderate" ? C.amber : C.green;
     doc.setFontSize(8.5); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
     doc.text("Weed Risk:", 14, y);
     doc.setFillColor(...wRgb); doc.roundedRect(40, y-5, 22, 7, 2, 2, "F");
     doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
     doc.text(safe(result.weed_risk).toUpperCase(), 51, y, { align:"center" });
-    y += 6;
+    y += 8;
     if (result.weed_risk_explanation) {
       y = wrap(doc, result.weed_risk_explanation, 18, y, W-36); y += 4;
     }
@@ -593,48 +581,51 @@ export async function generateScanReport({ result, farmerName, location, imageDa
 
   // ── Info box ─────────────────────────────────────────────────────
   doc.setFillColor(...C.bg);
-  doc.roundedRect(14, y, W-28, 18, 3, 3, "F");
+  doc.roundedRect(14, y, W-28, 22, 3, 3, "F");
+  doc.setDrawColor(...C.green); doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, W-28, 22, 3, 3, "D");
   doc.setFontSize(8.5); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
-  doc.text("Farmer:", 18, y+7);
-  doc.setFont("helvetica","normal"); doc.text(safe(farmerName ?? "TerraIQ+ User"), 40, y+7);
-  doc.setFont("helvetica","bold"); doc.text("Location:", 18, y+14);
-  doc.setFont("helvetica","normal"); doc.text(safe(location ?? "Nigeria"), 42, y+14);
-  doc.setFont("helvetica","bold"); doc.text("Date:", W/2, y+7);
-  doc.setFont("helvetica","normal"); doc.text(stamp, W/2+14, y+7);
-  y += 24;
+  doc.text("Farmer:", 18, y+8);
+  doc.setFont("helvetica","normal"); doc.text(safe(farmerName ?? "TerraIQ+ User"), 40, y+8);
+  doc.setFont("helvetica","bold"); doc.text("Location:", 18, y+15);
+  doc.setFont("helvetica","normal"); doc.text(safe(location ?? "Nigeria"), 42, y+15);
+  doc.setFont("helvetica","bold"); doc.text("Date:", W/2, y+8);
+  doc.setFont("helvetica","normal"); doc.text(stamp, W/2+14, y+8);
+  y += 28;
 
-  // ── Scan image — proper placement after info box ─────────────────
-  if (imageDataUrl) {
+  // ── Scanned image ─────────────────────────────────────────────────
+  const imgSrc = imageDataUrl || result?.imageDataUrl;
+  if (imgSrc) {
     try {
-      // Full width image, proportional crop, proper position
       const imgY = y;
       const imgH = 52;
-      doc.addImage(imageDataUrl, "JPEG", 14, imgY, W-28, imgH, undefined, "MEDIUM");
+      doc.addImage(imgSrc, "JPEG", 14, imgY, W-28, imgH, undefined, "MEDIUM");
       doc.setDrawColor(...C.green); doc.setLineWidth(0.3);
       doc.roundedRect(14, imgY, W-28, imgH, 2, 2, "D");
-      // Caption bar at bottom of image
-      doc.setFillColor(0, 0, 0, 0.5);
-      doc.setFontSize(7); doc.setFont("helvetica","italic"); doc.setTextColor(...C.white);
+      doc.setFontSize(7); doc.setFont("helvetica","italic"); doc.setTextColor(...C.gray);
       doc.text("Scanned plant image", 18, imgY + imgH - 3);
       y += imgH + 6;
-    } catch(_) {}
+    } catch(_) { /* image load failed — skip gracefully */ }
   }
 
-  // ── Identification ────────────────────────────────────────────────
+  // ── Plant identification ──────────────────────────────────────────
   y = secHead(doc, 14, y, "PLANT IDENTIFICATION", W);
   doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...C.green);
   doc.text(safe(result?.crop_identified ?? "Unknown Plant"), 18, y);
   y += 6;
-  doc.setFontSize(9); doc.setFont("helvetica","italic"); doc.setTextColor(...C.gray);
-  doc.text(safe(result?.scientific_name ?? ""), 18, y);
-  y += 7;
+  if (result?.scientific_name) {
+    doc.setFontSize(9); doc.setFont("helvetica","italic"); doc.setTextColor(...C.gray);
+    doc.text(safe(result.scientific_name), 18, y);
+    y += 6;
+  }
 
   // ── Confidence gauge ──────────────────────────────────────────────
   const conf = Math.min(100, Math.max(0, +(result?.identification_confidence ?? result?.confidence ?? 0)));
   y = drawConfidenceGauge(doc, 18, y, conf, W);
 
-  // ── Type + health badges ──────────────────────────────────────────
+  // ── Status badges ─────────────────────────────────────────────────
   let bx = 18;
+  // plant_type is optional — only render if present
   if (result?.plant_type) {
     doc.setFillColor(...C.green);
     doc.roundedRect(bx, y-4.5, 30, 7, 2, 2, "F");
@@ -643,40 +634,56 @@ export async function generateScanReport({ result, farmerName, location, imageDa
   }
   if (result?.is_weed) {
     doc.setFillColor(...C.orange);
-    doc.roundedRect(bx, y-4.5, 16, 7, 2, 2, "F");
+    doc.roundedRect(bx, y-4.5, 18, 7, 2, 2, "F");
     doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
-    doc.text("WEED", bx+8, y, { align:"center" }); bx += 20;
+    doc.text("WEED", bx+9, y, { align:"center" }); bx += 22;
   }
   if (result?.is_healthy) {
     doc.setFillColor(...C.green);
-    doc.roundedRect(bx, y-4.5, 20, 7, 2, 2, "F");
+    doc.roundedRect(bx, y-4.5, 22, 7, 2, 2, "F");
     doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
-    doc.text("HEALTHY", bx+10, y, { align:"center" });
+    doc.text("HEALTHY", bx+11, y, { align:"center" });
   }
-  y += 10;
+  y += 12;
+
+  // ── Health summary (was missing — now rendered) ───────────────────
+  if (result?.health_summary) {
+    checkY(18);
+    const hsLines = doc.splitTextToSize(safe(result.health_summary), W-40);
+    const hsH = hsLines.length * 5.2 + 12;
+    doc.setFillColor(240, 249, 244);
+    doc.roundedRect(14, y, W-28, hsH, 2, 2, "F");
+    y = wrap(doc, result.health_summary, 18, y+7, W-36); y += 6;
+  }
 
   if (result?.identification_notes) {
+    checkY(12);
     doc.setFontSize(7.5); doc.setFont("helvetica","italic"); doc.setTextColor(...C.gray);
     y = wrap(doc, `Visual features: ${result.identification_notes}`, 18, y, W-36); y += 4;
   }
 
   // ── Diagnosis ─────────────────────────────────────────────────────
   if (!result?.is_healthy && result?.diagnosis) {
-    checkY(30);
+    checkY(50);
     y = secHead(doc, 14, y, "DIAGNOSIS", W);
-    const sev    = result?.severity ?? "low";
-    const sevRgb = SEV_RGB[sev] ?? C.green;
+    doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
+    doc.text(safe(result.diagnosis), 18, y); y += 7;
 
-    // Severity bar chart
+    if (result?.severity_explanation) {
+      y = wrap(doc, result.severity_explanation, 18, y, W-36); y += 4;
+    }
+
+    // Severity indicator
+    checkY(18);
+    y = secHead(doc, 14, y, "SEVERITY INDICATOR", W);
+    const sev       = result?.severity ?? "low";
     const sevLevels = ["low","moderate","high","critical"];
     const sevIdx    = sevLevels.indexOf(sev);
-    checkY(20);
-    y = secHead(doc, 14, y, "SEVERITY INDICATOR", W);
-    const sevW = (W-36) / 4;
+    const sevW      = (W-36) / 4;
     sevLevels.forEach((lv, i) => {
-      const sx = 18 + i * sevW;
+      const sx       = 18 + i * sevW;
       const isActive = i <= sevIdx;
-      const lvRgb = SEV_RGB[lv] ?? C.green;
+      const lvRgb    = SEV_RGB[lv] ?? C.green;
       doc.setFillColor(...(isActive ? lvRgb : C.grayL));
       doc.roundedRect(sx, y, sevW-2, 7, 1.5, 1.5, "F");
       doc.setFontSize(6.5); doc.setFont("helvetica","bold");
@@ -685,20 +692,16 @@ export async function generateScanReport({ result, farmerName, location, imageDa
     });
     y += 11;
 
-    doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
-    doc.text(safe(result.diagnosis), 18, y); y += 7;
-
-    if (result?.severity_explanation) {
-      y = wrap(doc, result.severity_explanation, 18, y, W-36); y += 4;
-    }
-
+    // Immediate action box
     if (result?.immediate_action) {
-      checkY(18);
+      checkY(20);
+      const iaLines = doc.splitTextToSize(safe(result.immediate_action), W-40);
+      const iaH = iaLines.length * 5.2 + 18;
       doc.setFillColor(254,243,199);
-      doc.roundedRect(14, y, W-28, 14, 2, 2, "F");
+      doc.roundedRect(14, y, W-28, iaH, 2, 2, "F");
       doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(120,53,15);
-      doc.text("Immediate Action:", 18, y+6);
-      y = wrap(doc, result.immediate_action, 18, y+11, W-36); y += 4;
+      doc.text("Immediate Action:", 18, y+7);
+      y = wrap(doc, result.immediate_action, 18, y+13, W-36); y += 8;
     }
   }
 
@@ -708,13 +711,14 @@ export async function generateScanReport({ result, farmerName, location, imageDa
     checkY(20);
     y = secHead(doc, 14, y, "TREATMENT STEPS", W);
     steps.forEach((step, i) => {
-      checkY(12);
+      checkY(14);
       doc.setFillColor(...C.green); doc.circle(20, y-1, 3.5, "F");
       doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...C.white);
       doc.text(String(i+1), 20, y, { align:"center" });
       doc.setFont("helvetica","normal"); doc.setTextColor(...C.ink);
       y = wrap(doc, step, 28, y, W-44); y += 3;
     });
+    y += 2;
   }
 
   // ── Local products ────────────────────────────────────────────────
@@ -724,42 +728,61 @@ export async function generateScanReport({ result, farmerName, location, imageDa
     y = secHead(doc, 14, y, "LOCAL PRODUCTS", W);
     const colW2 = (W-28)/2;
     products.forEach((p, i) => {
+      if (i % 2 === 0) checkY(18);
       const px2 = 14 + (i%2)*colW2;
-      const py2 = y + Math.floor(i/2)*14;
+      const py2 = y + Math.floor(i/2)*16;
       doc.setFillColor(...C.bg);
-      doc.roundedRect(px2+1, py2-1, colW2-4, 12, 2, 2, "F");
+      doc.roundedRect(px2+1, py2-1, colW2-4, 14, 2, 2, "F");
       doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...C.ink);
       doc.text(safe(p.name ?? ""), px2+4, py2+5);
-      doc.setFont("helvetica","normal"); doc.setTextColor(...C.green);
-      if (p.price_naira) doc.text(naira(p.price_naira), px2+4, py2+10);
-      if (p.where) doc.text(safe(p.where), px2+colW2/2, py2+10, { align:"center" });
+      doc.setFont("helvetica","normal");
+      if (p.price_naira) { doc.setTextColor(...C.green); doc.text(naira(p.price_naira), px2+4, py2+11); }
+      if (p.where) { doc.setTextColor(...C.gray); doc.text(safe(p.where), px2+colW2/2, py2+11, { align:"center", maxWidth: colW2-8 }); }
     });
-    y += Math.ceil(products.length/2)*14 + 4;
+    y += Math.ceil(products.length/2)*16 + 4;
   }
 
   // ── Organic option ────────────────────────────────────────────────
   if (result?.organic_option) {
-    checkY(18);
+    checkY(20);
     y = secHead(doc, 14, y, "ORGANIC OPTION", W);
     doc.setFillColor(240,253,244);
-    doc.roundedRect(14, y, W-28, 16, 2, 2, "F");
-    y = wrap(doc, result.organic_option, 18, y+6, W-36); y += 8;
+    const orgLines = doc.splitTextToSize(safe(result.organic_option), W-40);
+    const orgH = orgLines.length * 5.2 + 12;
+    doc.roundedRect(14, y, W-28, orgH, 2, 2, "F");
+    y = wrap(doc, result.organic_option, 18, y+7, W-36); y += 6;
   }
 
   // ── Prevention ────────────────────────────────────────────────────
   if (result?.prevention) {
     checkY(18);
     y = secHead(doc, 14, y, "PREVENTION", W);
-    y = wrap(doc, result.prevention, 18, y, W-36); y += 4;
+    y = wrap(doc, result.prevention, 18, y, W-36); y += 6;
   }
 
-  // ── Weed action ───────────────────────────────────────────────────
+  // ── Weed control ──────────────────────────────────────────────────
   if (result?.is_weed && result?.weed_action) {
-    checkY(18);
+    checkY(20);
     y = secHead(doc, 14, y, "WEED CONTROL", W);
-    doc.setFillColor(254,226,226); doc.roundedRect(14, y, W-28, 16, 2, 2, "F");
+    doc.setFillColor(254,226,226);
+    const waLines = doc.splitTextToSize(safe(result.weed_action), W-40);
+    const waH = waLines.length * 5.2 + 12;
+    doc.roundedRect(14, y, W-28, waH, 2, 2, "F");
     doc.setTextColor(185,28,28);
-    y = wrap(doc, result.weed_action, 18, y+6, W-36); y += 8;
+    y = wrap(doc, result.weed_action, 18, y+7, W-36); y += 8;
+  }
+
+  // ── Healthy plant summary ──────────────────────────────────────────
+  if (result?.is_healthy && !result?.diagnosis) {
+    checkY(20);
+    y = secHead(doc, 14, y, "PLANT HEALTH ASSESSMENT", W);
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(14, y, W-28, 18, 2, 2, "F");
+    doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...C.green);
+    doc.text("No disease or pest detected", 18, y+7);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...C.gray);
+    doc.text("Continue current crop management practices.", 18, y+13);
+    y += 22;
   }
 
   doc.save(`TerraIQ_Scan_Report_${new Date().toISOString().slice(0,10)}.pdf`);

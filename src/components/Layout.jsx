@@ -23,16 +23,23 @@ export default function Layout({ children }) {
   const intervalRef = useRef(null);
   const userIdRef   = useRef(null);
 
+  const GrowthIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22V12" /><path d="M12 12C12 7 8 4 3 5c0 5 3 8 9 7" /><path d="M12 12c0-5 4-8 9-7-1 5-4 8-9 7" />
+    </svg>
+  );
+
   const NAV = [
-    { to: "/dashboard",   icon: "⊞", labelKey: "nav.dashboard"   },
-    { to: "/scanner",     icon: "◈", labelKey: "nav.scanner"     },
-    { to: "/history",     icon: "◧", labelKey: "nav.history",  fallback: "History"      },
-    { to: "/soil",        icon: "⊕", labelKey: "nav.soil"        },
-    { to: "/irrigation",  icon: "◎", labelKey: "nav.irrigation"  },
-    { to: "/harvest",     icon: "❧", labelKey: "nav.harvest"     },
-    { to: "/market",      icon: "◆", labelKey: "nav.market"      },
-    { to: "/cooperative", icon: "◉", labelKey: "nav.cooperative" },
-    { to: "/analytics",   icon: "▦", labelKey: "nav.analytics"   },
+    { to: "/dashboard",   icon: "⊞",           labelKey: "nav.dashboard"   },
+    { to: "/scanner",     icon: "◈",           labelKey: "nav.scanner"     },
+    { to: "/history",     icon: "◧",           labelKey: "nav.history",    fallback: "History"     },
+    { to: "/growth",      icon: <GrowthIcon />, labelKey: "nav.growth",     fallback: "Crop Growth" },
+    { to: "/soil",        icon: "⊕",           labelKey: "nav.soil"        },
+    { to: "/irrigation",  icon: "◎",           labelKey: "nav.irrigation"  },
+    { to: "/harvest",     icon: "❧",           labelKey: "nav.harvest"     },
+    { to: "/market",      icon: "◆",           labelKey: "nav.market"      },
+    { to: "/cooperative", icon: "◉",           labelKey: "nav.cooperative" },
+    { to: "/analytics",   icon: "▦",           labelKey: "nav.analytics"   },
   ];
 
   const handleLogout = async () => {

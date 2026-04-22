@@ -9,6 +9,7 @@ import { EmptyScans } from "@/components/EmptyState";
 import WeatherWidget from "@/components/WeatherWidget";
 import CropPriceTicker from "@/components/CropPriceTicker";
 import { checkAndNotify } from "@/lib/notifications";
+import { keepSupabaseAwake } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
 function norm(v) { return (v??"").toString().toLowerCase().trim(); }
@@ -51,6 +52,7 @@ useEffect(() => {
     setRecentScans(scans.data??[]);
     setIsNewUser((scans.data?.length ?? 0) === 0);
     checkAndNotify(user.id, p?.region);
+    keepSupabaseAwake();
   })();
    // Check if user just confirmed their email
   const params = new URLSearchParams(window.location.search);
@@ -77,7 +79,7 @@ useEffect(() => {
       {/* Welcome banner for new users */}
       {isNewUser && (
         <div className="bg-terra/10 dark:bg-terra/10 border border-terra/20 rounded-2xl p-5 mb-6 flex gap-4 items-start">
-          <span className="text-3xl shrink-0">🌱</span>
+          <span className="text-3xl shrink-0"></span>
           <div className="flex-1">
             <p className="text-ink dark:text-white font-bold mb-1">{t("dashboard.welcome")}</p>
             <p className="text-ink-500 dark:text-gray-400 text-sm mb-3">{t("dashboard.setupMessage")}</p>
@@ -110,14 +112,20 @@ useEffect(() => {
         <div className="grid grid-cols-2 gap-3">
           {[
             { icon:"⊙", label:t("dashboard.scanCrop"),    to:"/scanner",     color:"bg-terra text-white"  },
-            { icon:"◈", label:t("dashboard.analyseSoil"),    to:"/soil",        color:"bg-sky/10 text-sky border border-sky/20"    },
-            { icon:"◎", label:t("dashboard.irrigation"),   to:"/irrigation",  color:"bg-sky/10 text-sky border border-sky/20"    },
+            { icon:"◈", label:t("dashboard.analyseSoil"), to:"/soil",        color:"bg-sky/10 text-sky border border-sky/20" },
+            { icon:"svg_growth", label:t("dashboard.cropGrowth"), to:"/growth", color:"bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800" },
             { icon:"◆", label:t("dashboard.marketPrice"), to:"/market",      color:"bg-amber/10 text-amber border border-amber/20" },
           ].map(a => (
-            <Link key={a.label} to={a.to}
+            <Link key={a.label} to={a.to}   
               className={`${a.color} rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center hover:scale-105 transition-all shadow-sm font-semibold text-sm`}
             >
-              <span className="text-2xl">{a.icon}</span>
+              {a.icon === "svg_growth" ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22V12" /><path d="M12 12C12 7 8 4 3 5c0 5 3 8 9 7" /><path d="M12 12c0-5 4-8 9-7-1 5-4 8-9 7" />
+                </svg>
+              ) : (
+                <span className="text-2xl">{a.icon}</span>
+              )}
               {a.label}
             </Link>
           ))}

@@ -4,6 +4,8 @@
 // • No WebSocket connections opened at startup
 // • fetch with keepalive for Vercel's edge network
 // • Offline detection — skips requests when no internet
+// • Keep-alive ping — prevents Supabase free tier from pausing after 7 days
+//   inactivity. Runs once on load, then every 4 days via localStorage timestamp.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -56,4 +58,36 @@ export async function dbSelect(table, columns, match = {}) {
   const { data, error } = await q.single();
   if (error) return null;
   return data;
+}
+
+// ── Keep-alive ping ────────────────────────────────────────────────────
+// Supabase free tier pauses projects after 7 consecutive days of no DB
+// activity. This ping hits the profiles table with a lightweight HEAD
+// count query (no rows returned, costs almost zero data) to register
+// activity. It only fires if 4+ days have passed since the last ping,
+// so a daily active user never triggers it at all.
+const PING_KEY      = "terraiq_supabase_ping";
+const PING_INTERVAL = 4 * 24 * 60 * 60 * 1000; // 4 days in ms
+
+export function keepSupabaseAwake() {
+  if (!navigator.onLine) return;
+
+  try {
+    const last = parseInt(localStorage.getItem(PING_KEY) ?? "0", 10);
+    const now  = Date.now();
+
+    if (now - last < PING_INTERVAL) return; // too soon — skip
+
+    // Fire and forget — tiny HEAD query, no rows returned
+    supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .limit(1)
+      .then(() => {
+        localStorage.setItem(PING_KEY, String(Date.now()));
+      })
+      .catch(() => {}); // silently fail — never crash the app
+  } catch {
+    // localStorage may be blocked in some privacy modes — ignore
+  }
 }

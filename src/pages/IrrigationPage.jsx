@@ -32,13 +32,7 @@ const WATER_RATES = {
 
 const SEASON_MULTIPLIER = { dry:1.4, transitional:1.0, wet:0.5 };
 
-const GROWTH_LABELS = {
-  seedling:   "Seedling / Germination (0–3 weeks)",
-  vegetative: "Vegetative / Leaf growth (3–8 weeks)",
-  flowering:  "Flowering / Tasseling (8–12 weeks)",
-  fruiting:   "Fruiting / Pod filling (12–18 weeks)",
-  maturity:   "Maturity / Near harvest (18+ weeks)",
-};
+const GROWTH_KEYS = ["seedling","vegetative","flowering","fruiting","maturity"];
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
@@ -72,9 +66,9 @@ export function IrrigationPage() {
   }, []);
 
   const generate = async () => {
-    if (!form.crop) { toast.error("Enter your crop name"); return; }
+    if (!form.crop) { toast.error(t("irrigation.enterCrop")); return; }
     setLoading(true);
-    const tid = toast.loading("Building your 7-day irrigation plan...");
+    const tid = toast.loading(t("irrigation.generating"));
 
     try {
       // Get weather for farmer's region
@@ -165,7 +159,7 @@ export function IrrigationPage() {
       });
 
       toast.dismiss(tid);
-      toast.success("7-day irrigation plan ready!");
+      toast.success(t("irrigation.readyToast"));
     } catch(e) { toast.dismiss(tid); toast.error(e.message); }
     setLoading(false);
   };
@@ -176,24 +170,24 @@ export function IrrigationPage() {
     <Layout>
       <h1 className="text-ink dark:text-white text-3xl font-black mb-2">{t("irrigation.title")}</h1>
       <p className="text-ink-500 dark:text-gray-400 mb-6">
-        Precise 7-day plan based on your crop's growth stage, soil type, season, and live weather.
+        {t("irrigation.subtitle")}
       </p>
 
       <div className="bg-white dark:bg-dark-surface rounded-2xl border border-deep-light dark:border-dark-light p-6 mb-5 shadow-card space-y-4">
 
         {/* Crop */}
         <div>
-          <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Crop *</label>
+          <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.crop")} *</label>
           <input value={form.crop} onChange={set("crop")} placeholder="e.g. Maize, Tomato, Ewedu, Pepper" className={iClass} />
         </div>
 
         {/* Growth stage — most important input */}
         <div>
           <label className="text-ink-500 dark:text-gray-400 text-sm mb-2 block">
-            Growth stage * <span className="text-xs text-terra font-semibold ml-1">— affects water volume significantly</span>
+            {t("irrigation.growthStage")} * <span className="text-xs text-terra font-semibold ml-1">{t("irrigation.growthStageHint")}</span>
           </label>
           <div className="space-y-2">
-            {Object.entries(GROWTH_LABELS).map(([key, label]) => (
+            {GROWTH_KEYS.map((key) => (
               <button key={key} onClick={() => setForm(p => ({...p, growth_stage:key}))}
                 className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${
                   form.growth_stage === key
@@ -202,7 +196,7 @@ export function IrrigationPage() {
                 }`}
               >
                 <div className="flex justify-between items-center">
-                  <span>{label}</span>
+                  <span>{t(`irrigation.stage_${key}`)}</span>
                   {form.growth_stage === key && (
                     <span className="text-white/80 text-xs">
                       ~{WATER_RATES[key]?.[form.soil_type] ?? "–"} L/m²/day base
@@ -217,12 +211,12 @@ export function IrrigationPage() {
         {/* Row — farm size + plant population */}
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Farm size (m²)</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.farmSize")}</label>
             <input type="number" value={form.farm_size} onChange={set("farm_size")} placeholder="e.g. 500" className={iClass} />
-            <p className="text-ink-500 dark:text-gray-500 text-xs mt-1">Used to calculate total litres per day</p>
+            <p className="text-ink-500 dark:text-gray-500 text-xs mt-1">{t("irrigation.farmSizeHint")}</p>
           </div>
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Plant population (optional)</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.plantPop")}</label>
             <input type="number" value={form.population} onChange={set("population")} placeholder="e.g. 400 plants" className={iClass} />
           </div>
         </div>
@@ -230,21 +224,21 @@ export function IrrigationPage() {
         {/* Row — soil type + season */}
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Soil type</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.soilType")}</label>
             <select value={form.soil_type} onChange={set("soil_type")} className={iClass}>
-              <option value="sandy">Sandy — drains fast, needs more water</option>
-              <option value="sandy_loam">Sandy loam — drains moderately</option>
-              <option value="loamy">Loamy — balanced (most common)</option>
-              <option value="clay_loam">Clay loam — holds water well</option>
-              <option value="clay">Clay — holds water longest</option>
+              <option value="sandy">{t("irrigation.soilSandy")}</option>
+              <option value="sandy_loam">{t("irrigation.soilSandyLoam")}</option>
+              <option value="loamy">{t("irrigation.soilLoamy")}</option>
+              <option value="clay_loam">{t("irrigation.soilClayLoam")}</option>
+              <option value="clay">{t("irrigation.soilClay")}</option>
             </select>
           </div>
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Season</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.seasonLabel")}</label>
             <select value={form.season} onChange={set("season")} className={iClass}>
-              <option value="dry">Dry season (Nov–Mar) — +40% water need</option>
-              <option value="transitional">Transitional — normal rate</option>
-              <option value="wet">Wet season (Apr–Oct) — –50% water need</option>
+              <option value="dry">{t("irrigation.seasonDry")}</option>
+              <option value="transitional">{t("irrigation.seasonTransitional")}</option>
+              <option value="wet">{t("irrigation.seasonWet")}</option>
             </select>
           </div>
         </div>
@@ -262,16 +256,16 @@ export function IrrigationPage() {
 
           {/* Summary card */}
           <div className="bg-sky/10 dark:bg-sky/5 rounded-2xl p-5 border border-sky/20">
-            <p className="text-sky font-bold mb-1">{plan.crop} · {GROWTH_LABELS[plan.growth_stage]?.split(" (")[0]}</p>
+            <p className="text-sky font-bold mb-1">{plan.crop} · {t(`irrigation.stage_${plan.growth_stage}`)?.split(" (")[0]}</p>
             <p className="text-ink dark:text-white text-sm">{plan.summary}</p>
           </div>
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { value:`${plan.avg_rate}`,     unit:"L/m²/day avg",    color:"text-sky"   },
-              { value:`${plan.weekly_total?.toLocaleString()}`, unit:"total litres week", color:"text-terra" },
-              { value:`${plan.water_days}/7`, unit:"days to water",   color:"text-amber" },
+              { value:`${plan.avg_rate}`,     unit:t("irrigation.statAvgRate"),    color:"text-sky"   },
+              { value:`${plan.weekly_total?.toLocaleString()}`, unit:t("irrigation.statTotalLitres"), color:"text-terra" },
+              { value:`${plan.water_days}/7`, unit:t("irrigation.statWaterDays"),   color:"text-amber" },
             ].map((s,i) => (
               <div key={i} className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-deep-light dark:border-dark-light shadow-card text-center">
                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -307,7 +301,7 @@ export function IrrigationPage() {
                         <p className="text-ink-500 dark:text-gray-400 text-xs">{d.total_litres?.toLocaleString()} L total</p>
                       </>
                     ) : (
-                      <p className="text-ink-500 dark:text-gray-400 text-sm font-semibold">Skip</p>
+                      <p className="text-ink-500 dark:text-gray-400 text-sm font-semibold">{t("irrigation.skip")}</p>
                     )}
                   </div>
                 </div>
@@ -323,13 +317,13 @@ export function IrrigationPage() {
 
           {/* Water rate reference */}
           <div className="bg-white dark:bg-dark-surface rounded-2xl p-5 border border-deep-light dark:border-dark-light shadow-card">
-            <p className="text-ink dark:text-white font-bold mb-3 text-sm">Why these amounts?</p>
+            <p className="text-ink dark:text-white font-bold mb-3 text-sm">{t("irrigation.whyAmounts")}</p>
             <div className="space-y-2">
               {[
-                [`Growth stage (${GROWTH_LABELS[plan.growth_stage]?.split(" (")[0]})`, `Base: ${plan.base_rate} L/m²/day`],
-                [`${plan.soil_type.replace("_"," ")} soil`, "Adjusted retention factor"],
-                [`${plan.season} season`, `×${SEASON_MULTIPLIER[plan.season]} multiplier`],
-                ["Live weather", "Adjusted daily per rain chance and temperature"],
+                [`${t("irrigation.refStage")} (${t(`irrigation.stage_${plan.growth_stage}`)?.split(" (")[0]})`, `${t("irrigation.refBase")}: ${plan.base_rate} L/m²/day`],
+                [`${plan.soil_type.replace("_"," ")} ${t("irrigation.refSoil")}`, t("irrigation.refRetention")],
+                [`${plan.season} ${t("irrigation.refSeason")}`, `×${SEASON_MULTIPLIER[plan.season]} ${t("irrigation.refMultiplier")}`],
+                [t("irrigation.refWeather"), t("irrigation.refWeatherDesc")],
               ].map(([label, value], i) => (
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-ink-500 dark:text-gray-400">{label}</span>
@@ -366,7 +360,7 @@ function buildReason(stage, weather, rate, lang) {
 }
 
 function buildSummary(form, baseRate, seasonMult, region) {
-  const stageName = GROWTH_LABELS[form.growth_stage]?.split(" (")[0];
+  const stageName = form.growth_stage;
   const adjRate   = Math.round(baseRate * seasonMult * 10) / 10;
   return `${form.crop} at ${stageName.toLowerCase()} stage on ${form.soil_type.replace("_"," ")} soil in ${region}. `
     + `Base water need is ${baseRate} L/m²/day, adjusted to ~${adjRate} L/m²/day for the ${form.season} season. `
