@@ -117,6 +117,29 @@ export default function CameraScanner({ onCapture, onClose, multiAngle = true })
 
   useEffect(() => { startCamera("environment"); return () => streamRef.current?.getTracks().forEach(t=>t.stop()); }, []);
 
+  // Fix "page unreachable" when app is minimized and returned
+  // Pause video when hidden, restart camera when visible again
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        // Pause the video to release GPU resources — don't kill the stream yet
+        if (videoRef.current) videoRef.current.pause();
+      } else {
+        // Page became visible again — resume or restart camera
+        if (videoRef.current && streamRef.current) {
+          videoRef.current.play().catch(() => {
+            // Stream died while hidden — restart it
+            startCamera(facingMode, torchOn);
+          });
+        } else {
+          startCamera(facingMode, torchOn);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [facingMode, torchOn, startCamera]);
+
   const toggleTorch = async () => {
     if (!trackRef.current || !torchSupp) return;
     const next = !torchOn;

@@ -64,7 +64,7 @@ function CountdownBar({ harvestedAt, shelfLifeDays }) {
           <div className="flex items-end gap-1 mb-2">
             <span className={`text-4xl font-black ${style.text}`}>{days ?? "–"}</span>
            <span className={`text-sm font-semibold mb-1.5 ${style.text}`}>
-        {days === 1 ? "day left" : t("harvest.daysLeft")}
+        {t("harvest.daysLeft")}
       </span>
           </div>
           <div className="h-2 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden mb-2">
@@ -218,7 +218,7 @@ export function HarvestPage() {
       <div className="bg-white dark:bg-dark-surface rounded-2xl border border-deep-light dark:border-dark-light shadow-card">
         <div className="px-5 py-4 border-b border-deep-light dark:border-dark-light">
           <h2 className="text-ink dark:text-white font-bold">Harvest History</h2>
-          <p className="text-ink-500 dark:text-gray-500 text-xs mt-0.5">Countdown updates automatically each day</p>
+          <p className="text-ink-500 dark:text-gray-500 text-xs mt-0.5">{t("harvest.countdownNote")}</p>
         </div>
         {fetching ? (
           <div className="p-8 flex justify-center"><div className="w-6 h-6 border-2 border-terra border-t-transparent rounded-full animate-spin" /></div>

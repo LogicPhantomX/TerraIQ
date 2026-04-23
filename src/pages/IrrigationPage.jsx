@@ -32,19 +32,28 @@ const WATER_RATES = {
 
 const SEASON_MULTIPLIER = { dry:1.4, transitional:1.0, wet:0.5 };
 
-const GROWTH_LABELS = {
-  seedling:   "Seedling / Germination (0–3 weeks)",
-  vegetative: "Vegetative / Leaf growth (3–8 weeks)",
-  flowering:  "Flowering / Tasseling (8–12 weeks)",
-  fruiting:   "Fruiting / Pod filling (12–18 weeks)",
-  maturity:   "Maturity / Near harvest (18+ weeks)",
-};
-
-const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+// GROWTH_LABELS now resolved via t() inside component
+// DAYS replaced with real calendar day names below
 
 export function IrrigationPage() {
   const { t } = useTranslation();
   const lang    = useFarmerLanguage();
+
+  // Translated growth stage labels
+  const GROWTH_LABELS = {
+    seedling:   t("irrigation.stage_seedling"),
+    vegetative: t("irrigation.stage_vegetative"),
+    flowering:  t("irrigation.stage_flowering"),
+    fruiting:   t("irrigation.stage_fruiting"),
+    maturity:   t("irrigation.stage_maturity"),
+  };
+
+  // Real calendar day names starting from today using browser locale
+  const DAYS = Array.from({length: 7}, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d.toLocaleDateString("en-NG", { weekday: "long" });
+  });
   const [loading, setLoading] = useState(false);
   const [plan,    setPlan]    = useState(null);
   const [region,  setRegion]  = useState("");
@@ -72,9 +81,9 @@ export function IrrigationPage() {
   }, []);
 
   const generate = async () => {
-    if (!form.crop) { toast.error("Enter your crop name"); return; }
+    if (!form.crop) { toast.error(t("irrigation.enterCrop")); return; }
     setLoading(true);
-    const tid = toast.loading("Building your 7-day irrigation plan...");
+    const tid = toast.loading(t("irrigation.generating"));
 
     try {
       // Get weather for farmer's region
@@ -190,7 +199,7 @@ export function IrrigationPage() {
         {/* Growth stage — most important input */}
         <div>
           <label className="text-ink-500 dark:text-gray-400 text-sm mb-2 block">
-            Growth stage * <span className="text-xs text-terra font-semibold ml-1">— affects water volume significantly</span>
+            {t("irrigation.growthStage")} * <span className="text-xs text-terra font-semibold ml-1">{t("irrigation.growthStageHint")}</span>
           </label>
           <div className="space-y-2">
             {Object.entries(GROWTH_LABELS).map(([key, label]) => (
@@ -230,21 +239,21 @@ export function IrrigationPage() {
         {/* Row — soil type + season */}
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Soil type</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.soilType")}</label>
             <select value={form.soil_type} onChange={set("soil_type")} className={iClass}>
-              <option value="sandy">Sandy — drains fast, needs more water</option>
-              <option value="sandy_loam">Sandy loam — drains moderately</option>
-              <option value="loamy">Loamy — balanced (most common)</option>
-              <option value="clay_loam">Clay loam — holds water well</option>
-              <option value="clay">Clay — holds water longest</option>
+              <option value="sandy">{t("irrigation.soilSandy")}</option>
+              <option value="sandy_loam">{t("irrigation.soilSandyLoam")}</option>
+              <option value="loamy">{t("irrigation.soilLoamy")}</option>
+              <option value="clay_loam">{t("irrigation.soilClayLoam")}</option>
+              <option value="clay">{t("irrigation.soilClay")}</option>
             </select>
           </div>
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Season</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("irrigation.seasonLabel")}</label>
             <select value={form.season} onChange={set("season")} className={iClass}>
-              <option value="dry">Dry season (Nov–Mar) — +40% water need</option>
-              <option value="transitional">Transitional — normal rate</option>
-              <option value="wet">Wet season (Apr–Oct) — –50% water need</option>
+              <option value="dry">{t("irrigation.seasonDry")}</option>
+              <option value="transitional">{t("irrigation.seasonTransitional")}</option>
+              <option value="wet">{t("irrigation.seasonWet")}</option>
             </select>
           </div>
         </div>
@@ -269,9 +278,9 @@ export function IrrigationPage() {
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { value:`${plan.avg_rate}`,     unit:"L/m²/day avg",    color:"text-sky"   },
-              { value:`${plan.weekly_total?.toLocaleString()}`, unit:"total litres week", color:"text-terra" },
-              { value:`${plan.water_days}/7`, unit:"days to water",   color:"text-amber" },
+              { value:`${plan.avg_rate}`,     unit: t("irrigation.statAvgRate"),    color:"text-sky"   },
+              { value:`${plan.weekly_total?.toLocaleString()}`, unit: t("irrigation.statTotalLitres"), color:"text-terra" },
+              { value:`${plan.water_days}/7`, unit: t("irrigation.statWaterDays"),  color:"text-amber" },
             ].map((s,i) => (
               <div key={i} className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-deep-light dark:border-dark-light shadow-card text-center">
                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -323,13 +332,13 @@ export function IrrigationPage() {
 
           {/* Water rate reference */}
           <div className="bg-white dark:bg-dark-surface rounded-2xl p-5 border border-deep-light dark:border-dark-light shadow-card">
-            <p className="text-ink dark:text-white font-bold mb-3 text-sm">Why these amounts?</p>
+            <p className="text-ink dark:text-white font-bold mb-3 text-sm">{t("irrigation.whyAmounts")}</p>
             <div className="space-y-2">
               {[
-                [`Growth stage (${GROWTH_LABELS[plan.growth_stage]?.split(" (")[0]})`, `Base: ${plan.base_rate} L/m²/day`],
-                [`${plan.soil_type.replace("_"," ")} soil`, "Adjusted retention factor"],
-                [`${plan.season} season`, `×${SEASON_MULTIPLIER[plan.season]} multiplier`],
-                ["Live weather", "Adjusted daily per rain chance and temperature"],
+                [`${t("irrigation.refStage")} (${GROWTH_LABELS[plan.growth_stage]?.split(" (")[0]})`, `${t("irrigation.refBase")}: ${plan.base_rate} L/m²/day`],
+                [`${plan.soil_type.replace("_"," ")} ${t("irrigation.refSoil")}`, t("irrigation.refRetention")],
+                [`${plan.season} ${t("irrigation.refSeason")}`, `×${SEASON_MULTIPLIER[plan.season]} ${t("irrigation.refMultiplier")}`],
+                [t("irrigation.refWeather"), t("irrigation.refWeatherDesc")],
               ].map(([label, value], i) => (
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-ink-500 dark:text-gray-400">{label}</span>
@@ -346,23 +355,66 @@ export function IrrigationPage() {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function buildReason(stage, weather, rate, lang) {
-  const hot  = weather.temp > 33;
-  const mild = weather.temp < 24;
+  const hot   = weather.temp > 33;
+  const mild  = weather.temp < 24;
   const humid = weather.humidity > 75;
 
+  // Stage notes per language
   const stageNotes = {
-    seedling:   "Seedlings need gentle, consistent moisture — do not overwater or roots will rot.",
-    vegetative: "Active leaf growth requires steady moisture for nutrient uptake.",
-    flowering:  "Flowering is the most water-sensitive stage — consistent moisture is critical.",
-    fruiting:   "Fruit development requires good water supply but avoid waterlogging.",
-    maturity:   "Reduce water as crop matures — too much water at this stage reduces quality.",
+    en: {
+      seedling:   "Seedlings need gentle, consistent moisture — do not overwater or roots will rot.",
+      vegetative: "Active leaf growth requires steady moisture for nutrient uptake.",
+      flowering:  "Flowering is the most water-sensitive stage — consistent moisture is critical.",
+      fruiting:   "Fruit development requires good water supply but avoid waterlogging.",
+      maturity:   "Reduce water as crop matures — too much water at this stage reduces quality.",
+    },
+    yo: {
+      seedling:   "Àwọn irúgbìn tuntun nílò omi díẹ̀ tó dúró déédéé — máà bomi púpọ̀ kó má jẹ́ kí gbòǹgbò rọ.",
+      vegetative: "Ìdàgbàsókè ewé gbòǹgbò nílò omi déédéé fún gbígba oúnjẹ.",
+      flowering:  "Ìpele ìfúpẹ̀ ló ṣe pàtàkì jùlọ fún omi — omi déédéé ṣe pàtàkì.",
+      fruiting:   "Ìdàgbàsókè èso nílò omi tó dára ṣùgbọ́n má jẹ́ kí omi pọ̀ jù.",
+      maturity:   "Dín omi bí irúgbìn bá ń dàgbà — omi tó pọ̀ jù ní ìpele yìí máa ń dín àgbàdo.",
+    },
+    ha: {
+      seedling:   "Tsire-tsire na farko suna buƙatar laushi mai haɗi — kar a ba su ruwa sosai.",
+      vegetative: "Girman ganyayyaki yana buƙatar danshi mai yawa don shan abinci.",
+      flowering:  "Furanni shi ne mafi mahimmancin mataki don ruwa — danshi mai daidaituwa ya zama dole.",
+      fruiting:   "Ci gaban 'ya'ya yana buƙatar ruwa mai kyau amma guje wa ruwan da ya yi yawa.",
+      maturity:   "Rage ruwa yayin da amfanin gona ya balaga — ruwa mai yawa a wannan mataki yana rage inganci.",
+    },
+    ig: {
+      seedling:   "Osisi ndị ọhụụ chọọ mmiri dị nro ma na-adịgide — ọ bụghị ka i tinye mmiri karịa ma ọ bụ ọsiọcha agbadaa.",
+      vegetative: "Uto akwụkwọ na-arụ ọrụ chọọ mmiri na-adịgide maka ịnata nri.",
+      flowering:  "Okooko bụ oge kachasị mkpa maka mmiri — mmiri na-adịgide dị oke mkpa.",
+      fruiting:   "Mmepe mkpụrụ chọọ mmiri dị mma mana zere miri ebe mmiri jupụtara.",
+      maturity:   "Belata mmiri ka ọrụ ugbo na-eto eto — mmiri karịa n'oge a na-ebelata àgwà.",
+    },
   };
 
-  const weatherNote = hot ? ` High temperature (${weather.temp}°C) increases evaporation.`
-    : mild ? ` Mild temperature reduces water need slightly.`
-    : humid ? ` High humidity reduces evaporation.` : "";
+  const notes = stageNotes[lang] ?? stageNotes.en;
+  const weatherSuffix = {
+    en: hot  ? ` High temperature (${weather.temp}°C) increases evaporation.`
+      : mild ? ` Mild temperature reduces water need slightly.`
+      : humid? ` High humidity reduces evaporation.` : "",
+    yo: hot  ? ` Oòrùn líle (${weather.temp}°C) ń mú evaporation pọ̀ sí i.`
+      : mild ? ` Ìgbóná díẹ̀ dín ìpọ̀ omi díẹ̀.`
+      : humid? ` Ọ̀rọ̀ omi gaan dín evaporation.` : "",
+    ha: hot  ? ` Zafi mai yawa (${weather.temp}°C) yana ƙara evaporation.`
+      : mild ? ` Sanyin yanayi yana rage buƙatar ruwa kaɗan.`
+      : humid? ` Yawan danshi yana rage evaporation.` : "",
+    ig: hot  ? ` Okpomọkụ dị elu (${weather.temp}°C) na-abawanye evaporation.`
+      : mild ? ` Okpomọkụ dị nro na-ebelata achọ mmiri obere.`
+      : humid? ` Mmiri n'ikuku dị ukwu na-ebelata evaporation.` : "",
+  };
 
-  return `${stageNotes[stage] ?? ""}${weatherNote} Apply ${rate} L/m² in the early morning.`;
+  const applyNote = {
+    en: `Apply ${rate} L/m² in the early morning.`,
+    yo: `Bomi ${rate} L/m² ní àárọ̀ kíákíá.`,
+    ha: `Miƙa ${rate} L/m² da sassafe.`,
+    ig: `Tinye mmiri ${rate} L/m² n'ụtụtụ.`,
+  };
+
+  return `${notes[stage] ?? ""}${(weatherSuffix[lang] ?? weatherSuffix.en)} ${(applyNote[lang] ?? applyNote.en)}`;
 }
 
 function buildSummary(form, baseRate, seasonMult, region) {

@@ -93,7 +93,7 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <h1 className="text-ink dark:text-white text-3xl font-black mb-6">Profile</h1>
+      <h1 className="text-ink dark:text-white text-3xl font-black mb-6">{t("profile.title")}</h1>
 
       <div className="space-y-5 max-w-lg">
 
