@@ -562,7 +562,7 @@ export default function HistoryPage() {
   return (
     <Layout>
       <h1 className="text-ink dark:text-white text-2xl font-black mb-1">
-        {t("nav.scanner")||"History"}
+        {t("nav.history")||"History"}
       </h1>
       <p className="text-ink-500 dark:text-gray-400 text-sm mb-5">
         {t("common.historySubtitle")||"All your scan and soil analysis records"}

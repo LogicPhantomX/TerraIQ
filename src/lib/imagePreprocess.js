@@ -44,18 +44,18 @@ export async function preprocessImage(base64, options = {}) {
       if (brightness !== 1 || contrast !== 1) {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
-        const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+        // Standard contrast factor: contrast is a multiplier (1.0 = no change, 1.12 = slight boost)
+        const contrastFactor = contrast;
 
         for (let i = 0; i < data.length; i += 4) {
-          // Brightness
-          data[i]     = Math.min(255, data[i]     * brightness);
-          data[i + 1] = Math.min(255, data[i + 1] * brightness);
-          data[i + 2] = Math.min(255, data[i + 2] * brightness);
-
-          // Contrast
-          data[i]     = Math.min(255, Math.max(0, factor * (data[i]     - 128) + 128));
-          data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128));
-          data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128));
+          for (let c = 0; c < 3; c++) {
+            let val = data[i + c];
+            // Brightness
+            val = val * brightness;
+            // Contrast around midpoint 128
+            val = (val - 128) * contrastFactor + 128;
+            data[i + c] = Math.min(255, Math.max(0, Math.round(val)));
+          }
         }
         ctx.putImageData(imageData, 0, 0);
       }
@@ -66,7 +66,10 @@ export async function preprocessImage(base64, options = {}) {
         const dst = ctx.createImageData(width, height);
         const s = src.data, d = dst.data;
 
-        // Sharpen kernel: [0,-1,0,-1,5,-1,0,-1,0]
+        // Copy ALL pixels first (including borders) so nothing stays black
+        for (let i = 0; i < s.length; i++) d[i] = s[i];
+
+        // Sharpen kernel: [0,-1,0,-1,5,-1,0,-1,0] — inner pixels only
         for (let y = 1; y < height - 1; y++) {
           for (let x = 1; x < width - 1; x++) {
             for (let c = 0; c < 3; c++) {
