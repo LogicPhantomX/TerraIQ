@@ -6,12 +6,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import i18n from "i18next";
 
+const VALID_LANGS = ["en", "yo", "ha", "ig"];
+const LANG_KEY    = "terraiq-lang";   // consistent localStorage key
+
 // Module-level cache — fetched once per browser session
 let _cachedLang = null;
 const _listeners = new Set();
 
 function notifyListeners(lang) {
   _listeners.forEach(fn => fn(lang));
+}
+
+// Persist to localStorage so main.jsx can read it on next load
+function persistLang(lang) {
+  try { localStorage.setItem(LANG_KEY, lang); } catch(_) {}
 }
 
 export function useFarmerLanguage() {
@@ -21,7 +29,7 @@ export function useFarmerLanguage() {
     // Subscribe to future updates (e.g. when Profile saves a new language)
     _listeners.add(setLang);
 
-    // If already cached, apply immediately
+    // If already cached, apply immediately — no DB round trip needed
     if (_cachedLang) {
       setLang(_cachedLang);
       if (i18n.language !== _cachedLang) {
@@ -42,10 +50,11 @@ export function useFarmerLanguage() {
           .eq("id", session.user.id)
           .single();
 
-        const userLang = (data?.language && ["en","yo","ha","ig"].includes(data.language))
+        const userLang = (data?.language && VALID_LANGS.includes(data.language))
           ? data.language : "en";
 
         _cachedLang = userLang;
+        persistLang(userLang);   // ← save so next reload is instant
         setLang(userLang);
         notifyListeners(userLang);
 
@@ -64,15 +73,16 @@ export function useFarmerLanguage() {
   return lang;
 }
 
-// Call this after Profile saves so next page load re-fetches
+// Call this after Profile saves so next page load re-fetches from DB
 export function clearLanguageCache() {
   _cachedLang = null;
 }
 
 // Call this to instantly switch language everywhere (used by Profile page)
 export function applyLanguage(langCode) {
-  if (!["en","yo","ha","ig"].includes(langCode)) return;
+  if (!VALID_LANGS.includes(langCode)) return;
   _cachedLang = langCode;
+  persistLang(langCode);         // ← persist so reload stays in right language
   notifyListeners(langCode);
   i18n.changeLanguage(langCode);
 }

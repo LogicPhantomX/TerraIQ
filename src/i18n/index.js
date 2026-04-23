@@ -72,6 +72,11 @@ const ig = {
   growth: { title:"Ihe Amụma Uto Ọrụ Ugbo", day:"Ụbọchị", month:"Ọnwa", year:"Afọ", subtitle:"Mara oge kpọmkwem ọrụ ugbo gị ga-esi, ọ ga-eme okooko, ma dị njikere maka ịgbọ", crop:"Ọrụ ugbo", selectCrop:"Họọ ọrụ ugbo gị", plantingDate:"Ụbọchị ịkụ ọrụ", plantingDateHint:"Tinye ụbọchị i kụrụ ma ọ bụ i na-achọ ikụ", soilCondition:"Ọnọdụ ala", soilGood:"Ala dị mma", soilModerate:"Ala dị n'etiti", soilPoor:"Ala adịghị mma", season:"Oge", rainy:"Oge mmiri ozuzo", dry:"Oge ọkọchị", harmattan:"Oge harmattan", locationUsed:"eji maka amụma mpaghara", predictBtn:"Amụma Usoro Uto", predicting:"Na-amụma...", readyToast:"Ihe oge uto dị njikere!", enterCrop:"Biko họọ ọrụ ugbo gị", enterDate:"Biko tinye ụbọchị ịkụ ọrụ", timeline:"Usoro Oge Uto", tapStage:"Pịa oge ọ bụla iji hụ ihe ị ga-eme", whatToExpect:"Ihe i ga-ahụ", yourAction:"Ọrụ gị", watchOut:"Dị ndụ", now:"UGBU A", days:"ụbọchị", daysToHarvest:"ụbọchị ruo ịgbọ", harvestOn:"Ịgbọ dị njikere na", harvestReady:"Dị njikere ịgbọ!", harvestReadySub:"Ọrụ ugbo gị kwesịrị ịdị njikere. Lelee ubi.", totalGrowthTime:"Oge uto niile", seasonFit:"oge dabara", milestones:"Ihe Ndị Dị Mkpa", yieldEstimate:"Amụma Ịgbọ", perHectare:"N'acha otu hektia", smallFarm:"Otu ụzọ anọ hektia", marketValue:"Ọnụahịa ahịa", tips:"Ndụmọdụ maka Ịgbọ Kacha Mma", varietyNote:"Maka Ọrụ Ugbo A", predictAnother:"Amụma Ọrụ Ugbo Ọzọ", savedPredictions:"Amụma echekwara", planted:"Ikụ", harvest:"Ịgbọ", view:"Hụ" },
 };
 
+// Read persisted language before init so there is zero flash of wrong language
+const VALID_LANGS = ["en", "yo", "ha", "ig"];
+const _savedLang = localStorage.getItem("terraiq-lang") || localStorage.getItem("i18nextLng") || "en";
+const _initLang  = VALID_LANGS.includes(_savedLang) ? _savedLang : "en";
+
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
@@ -79,7 +84,7 @@ i18n.use(initReactI18next).init({
     ha: { translation: ha },
     ig: { translation: ig },
   },
-  lng: "en",
+  lng: _initLang,
   fallbackLng: "en",
   interpolation: { escapeValue: false },
 });

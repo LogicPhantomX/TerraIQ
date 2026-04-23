@@ -233,8 +233,8 @@ Respond ONLY with valid JSON. No markdown. No backticks. No extra text.
   // Vision-capable models in priority order — first that works is used
   const VISION_MODELS = [
     "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
     "llama-3.2-90b-vision-preview",
-    "llama-3.2-11b-vision-preview",
   ];
 
   let res, lastError;
@@ -278,7 +278,7 @@ Respond entirely in ${langName}.`
     }
   }
 
-  if (!res) throw new Error(lastError ?? "Scan failed. Check your internet and try again.");
+  if (!res) throw new Error("Scan service temporarily unavailable. Please try again in a moment.");
 
   const data = await res.json();
   const raw  = data.choices[0].message.content;
