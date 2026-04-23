@@ -116,7 +116,7 @@ useEffect(() => {
             { icon:"svg_growth", label:t("dashboard.cropGrowth"), to:"/growth", color:"bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800" },
             { icon:"◆", label:t("dashboard.marketPrice"), to:"/market",      color:"bg-amber/10 text-amber border border-amber/20" },
           ].map(a => (
-            <Link key={a.label} to={a.to}   
+            <Link key={a.label} to={a.to}
               className={`${a.color} rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center hover:scale-105 transition-all shadow-sm font-semibold text-sm`}
             >
               {a.icon === "svg_growth" ? (

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useEffect, useState, Suspense, lazy } from "react";
 import { supabase } from "@/lib/supabase";
@@ -35,12 +35,18 @@ function LanguageSync() {
 
 function Protected({ children }) {
   const [session, setSession] = useState(undefined);
+  const location = useLocation();
+
   useEffect(() => {
+    // Check session immediately — also handles page restore after minimise/lock
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
+
+    // Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
 
+  // Still checking — show spinner, never redirect yet
   if (session === undefined) return (
     <div className="min-h-screen bg-deep-mid dark:bg-dark-base flex items-center justify-center">
       <div style={{ textAlign: "center" }}>
@@ -49,7 +55,14 @@ function Protected({ children }) {
       </div>
     </div>
   );
-  return session ? children : <Navigate to="/login" replace />;
+
+  if (!session) {
+    // Save the page the user was on so Login can redirect back to it
+    sessionStorage.setItem("terraiq_return_to", location.pathname + location.search);
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 }
 
 export default function App() {

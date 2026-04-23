@@ -19,7 +19,9 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     setLoading(false);
     if (error) { toast.error(error.message); return; }
-    navigate("/dashboard");
+    const returnTo = sessionStorage.getItem("terraiq_return_to") || "/dashboard";
+    sessionStorage.removeItem("terraiq_return_to");
+    navigate(returnTo);
   };
 
   const iClass = "w-full bg-deep-mid dark:bg-dark-mid rounded-xl px-4 h-12 text-ink dark:text-white border border-deep-light dark:border-dark-light focus:border-terra outline-none text-sm";

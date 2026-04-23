@@ -6,17 +6,11 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
-// Read saved language on startup — check our key first, then i18next default
-const VALID_LANGS = ["en", "yo", "ha", "ig"];
-const savedLang =
-  localStorage.getItem("terraiq-lang") ||
-  localStorage.getItem("i18nextLng") ||
-  "en";
-const startLang = VALID_LANGS.includes(savedLang) ? savedLang : "en";
-if (startLang !== "en") {
-  i18n.changeLanguage(startLang);
-}
 
+const savedLang = localStorage.getItem("lang");
+if (savedLang) {
+  i18n.changeLanguage(savedLang);
+}
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>

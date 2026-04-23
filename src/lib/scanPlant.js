@@ -1,304 +1,192 @@
 // ─── src/lib/scanPlant.js ─────────────────────────────────────────────
-// v3: Strict identification, no healthy/weed confusion, learns from corrections
-// temperature 0.05 = maximum consistency, minimum hallucination
+// Clean vision-first approach — minimal prompt, maximum accuracy.
+// The Llama-4 Scout vision model is powerful enough to identify any plant
+// correctly when you stop overloading it with text rules that fight its vision.
 
 const SCAN_CACHE = new Map();
-function cacheKey(b64) { return b64.slice(0,80) + b64.slice(-80); }
+function cacheKey(b64) { return b64.slice(0, 80) + b64.slice(-80); }
 
 export async function scanPlant(captures, region, lang, corrections, city) {
   const GROQ_KEY  = import.meta.env.VITE_GROQ_KEY;
   const langName  = { en:"English", yo:"Yoruba", ha:"Hausa", ig:"Igbo" }[lang] ?? "English";
   const langInstr = {
-    en: "ALL text fields in clear simple English. Scientific names stay in Latin.",
-    yo: "Gbogbo awọn aaye ọrọ ni Yorùbá. Àwọn orúkọ sáyẹ́ǹsì wà ní Látìn nìkan.",
-    ha: "Duk rubutun a cikin Hausa. Sunaye na kimiyya kawai a Latin.",
-    ig: "Ederede niile n'asụsụ Igbo. Aha sayensị naanị n'Latin.",
-  }[lang] ?? "ALL text fields in English.";
+    en: "Respond in clear simple English.",
+    yo: "Gbogbo awọn idahun ni Yoruba.",
+    ha: "Duk amsa a cikin Hausa.",
+    ig: "Zaghachi niile n'Igbo.",
+  }[lang] ?? "Respond in English.";
 
   const locationStr = city && region ? `${city}, ${region}, Nigeria`
     : region ? `${region}, Nigeria` : "Nigeria";
 
+  // Cache single-image scans
   if (captures.length === 1) {
     const k = cacheKey(captures[0].base64);
     if (SCAN_CACHE.has(k)) return SCAN_CACHE.get(k);
   }
 
-  // ── Corrections block — highest priority ───────────────────────────
-  const corrBlock = corrections.length > 0 ? `
-╔══════════════════════════════════════════════════════╗
-║  FARMER CORRECTIONS — ABSOLUTE HIGHEST PRIORITY     ║
-║  These OVERRIDE everything else. No exceptions.     ║
-╚══════════════════════════════════════════════════════╝
-${corrections.map((c,i) => 
-  `RULE ${i+1}: When you see a plant that looks like "${c.wrong_id}", it is ACTUALLY "${c.correct_id}".
-  Visual clue: ${c.visual_clue ?? "Trust the farmer — they know their crops better than you."}`
-).join("\n")}
+  // Past corrections the farmer made — injected as a short note, not a wall of rules
+  const corrNote = corrections.length > 0
+    ? `\nNote: This farmer previously corrected these misidentifications — avoid them: ${corrections.map(c => `"${c.wrong_id}" should be "${c.correct_id}"`).join("; ")}.`
+    : "";
 
-This farmer has ALREADY corrected your AI mistakes. Lean HARD away from the wrong IDs above.
-` : "";
+  // ── SYSTEM PROMPT — short, clear, vision-first ────────────────────
+  // The model's vision is the primary tool. We only tell it the OUTPUT FORMAT
+  // and language. We do NOT describe crops — that fights the vision.
+  const system = `You are an expert botanist and plant pathologist with encyclopaedic knowledge of all plants worldwide — crops, weeds, ornamentals, trees, wild plants, grasses, herbs, everything. You can identify any plant from a photo just like a top AI vision model would.
 
-  const system = `You are TerraIQ+, an expert botanist and agronomist for Nigerian farmers.
+${langInstr}
+The farmer is in ${locationStr}.${corrNote}
 
-LANGUAGE RULE: ${langInstr}
-FARMER LOCATION: ${locationStr}
+Look at the image carefully and identify EXACTLY what plant this is — do not guess based on location bias. Trust what you actually SEE in the image. A guava is a guava. A rose is a rose. An ornamental plant is an ornamental plant. Do not default to common farm crops if the visual evidence shows something else.
 
-${corrBlock}
+After identifying the plant, assess its health condition honestly:
+- If the plant looks perfectly healthy: say so
+- If you see disease symptoms, pests, or deficiencies: describe them specifically
+- If it is a weed species: say it is a weed and what action to take
 
-══════════════════════════════════════════════════════
-CRITICAL RULES — READ BEFORE IDENTIFYING
-══════════════════════════════════════════════════════
-
-RULE A — IS_HEALTHY means: does this specific plant look VISUALLY HEALTHY?
-  • is_healthy = TRUE only if: leaves are uniform green, no spots/yellowing/holes/wilting/lesions
-  • is_healthy = FALSE if: ANY spots, yellowing, brown edges, holes, wilting, lesions, discoloration
-  • is_healthy = FALSE for ALL weeds (weeds are never "healthy crops")
-  • A weed can be vigorous and green — it is still NOT healthy from a farmer perspective
-
-RULE B — is_weed means: is this plant UNWANTED in a farm?
-  • is_weed = TRUE: Siam weed, spear grass, striga, tridax, pigweed, mimosa, water hyacinth
-  • is_weed = FALSE: All food crops, trees, vegetables — even if diseased
-  • NEVER mark a cassava, maize, tomato, yam etc as is_weed=true — they are crops
-
-RULE C — diagnosis field:
-  • If is_healthy=true AND is_weed=false: diagnosis = specific plant name + "appears healthy"
-  • If is_healthy=false: diagnosis = SPECIFIC disease/pest/deficiency name (e.g. "Cassava Mosaic Disease", "Early Blight", "Nitrogen Deficiency")
-  • If is_weed=true: diagnosis = weed name + impact on farm (e.g. "Siam Weed — competes with crops for nutrients")
-  • NEVER write just "healthy" or "weed" — always be specific
-
-RULE D — severity:
-  • Use "none" for healthy plants (not "low")
-  • Use "low/moderate/high/critical" only for diseases/pests/deficiencies
-  • Weeds: use "moderate" (manageable) or "high" (invasive) based on spread
-
-══════════════════════════════════════════════════════
-PLANT IDENTIFICATION — ALL NIGERIAN FARM PLANTS
-══════════════════════════════════════════════════════
-
-CEREALS & GRASSES:
-• MAIZE (Oka/Masara/Ọka | Zea mays): Long strap leaves 60-120cm, strong parallel veins, thick midrib, hollow cane stem.
-• RICE (Iresi/Shinkafa | Oryza sativa): Narrow flat leaves, hollow stems, flooded conditions, drooping panicle.
-• SORGHUM (Oka baba/Dawa | Sorghum bicolor): Wide leaves, stiff upright stem, large grain head at top.
-• MILLET (Gero | Pennisetum glaucum): Very narrow leaves, long fluffy cylindrical seed head.
-• WHEAT (Alkama | Triticum): Short narrow leaves, thin hollow stems, compact grain head.
-
-ROOTS & TUBERS:
-• CASSAVA (Rogo/Akpu | Manihot esculenta): PALMATE leaves — 5-9 pointed lobes radiating from ONE center like a star. Reddish petiole. Woody stem. White latex when cut. NEEDS ALL THREE markers.
-• YAM (Isu/Doya/Ji | Dioscorea): Heart-shaped leaves with prominent veins, twining vine stems.
-• SWEET POTATO (Anamo/Dankali | Ipomoea batatas): Heart/lobed leaves on trailing vines, purplish stems.
-• COCOYAM (Ẹdọ/Gwaza/Ede | Colocasia): LARGE arrow-shaped leaves 30-60cm, thick petioles, upright from corm.
-• IRISH POTATO (Ọdunkun | Solanum tuberosum): Pinnate compound leaves, white/purple flowers, bushy.
-
-LEGUMES:
-• COWPEA (Ẹwà/Waken/Akidi | Vigna unguiculata): Exactly 3 leaflets, climbing or bushy, pods visible when mature.
-• GROUNDNUT (Epa/Gyada/Ahụekere | Arachis hypogaea): Exactly 4 leaflets (2 pairs), low-growing, leaflets fold at night.
-• SOYBEAN (Wake soya | Glycine max): 3 hairy leaflets, bushy upright, hairy pods.
-• BAMBARA NUT (Epa-rọrọ/Gurjiya/Okpa | Vigna subterranea): Ground-hugging, 3 leaflets, pods develop underground.
-
-VEGETABLES:
-• TOMATO (Tumatir | Solanum lycopersicum): Pinnate compound, STRONG smell, hairy sticky stems, irregular leaflets.
-• OKRA (Ilá/Kubewa/Ọkwụrụ | Abelmoschus): Large heart-shaped with 3-7 lobes, yellow flowers, erect.
-• EWEDU/JUTE (Corchorus olitorius): Small serrated oval leaves 3-8cm, thin stems, dense.
-• AMARANTHUS/TETE (Amaranthus hybridus): Broad oval leaves, often red/purple stems, upright, dense.
-• UGU/FLUTED PUMPKIN (Telfairia occidentalis): Large lobed leaves 15-30cm, climbing with TENDRILS.
-• BITTER LEAF (Ewuro/Onugbu | Vernonia): Dark lance-shaped leaves, strong BITTER smell.
-• WATERLEAF (Gbure | Talinum): Very smooth fleshy oval leaves, watery stems, pink flowers.
-• PEPPER/TATASHE (Ose/Tattasai | Capsicum annuum): Oval waxy leaves, erect, no smell.
-• HOT PEPPER (Ata-rodo/Barkono | Capsicum frutescens): Like pepper but smaller.
-• GARDEN EGG (Gauta | Solanum melongena): Fuzzy oval leaves, purple flowers, 10-20cm.
-• SCENT LEAF (Efinrin/Nchanwu | Ocimum): Strong aromatic smell, serrated edges, SQUARE stems.
-• CUCUMBER (Cucumis sativus): Rough heart-shaped, climbing with TENDRILS, yellow flowers.
-• WATERMELON (Kankana | Citrullus): Deeply cut/lobed leaves, trailing, curly tendrils.
-• ONION (Alubosa/Albasa | Allium): Hollow cylindrical leaves, distinctive onion smell.
-• CABBAGE (Kabeji | Brassica): Smooth round waxy leaves forming dense head.
-• CARROT (Karọọtì | Daucus): Finely divided feathery leaves, lacy appearance.
-• AFRICAN SPINACH (Tete/Celosia): Oval leaves, colorful feathery flower heads.
-
-TREES & FRUITS:
-• PLANTAIN (Ọgẹdẹ/Ayaba | Musa paradisiaca): Huge oblong leaves 1-3m, thick pseudostem.
-• BANANA (Unere/Ayaba | Musa acuminata): Like plantain but shorter, narrower leaves.
-• PAWPAW (Ìbọ̀pẹ/Gwanda | Carica papaya): Very large deeply lobed leaves 30-60cm, unbranched trunk.
-• MANGO (Mangoro | Mangifera indica): Single glossy lance leaves 15-35cm clustered at branch tips.
-• CASHEW (Kaju | Anacardium occidentale): Single smooth OVAL leathery leaf 10-20cm, rounded tip, slightly wavy margin, prominent midrib, reddish young leaves, old leaves dark glossy green. Leaves clustered at branch tips. Bark is smooth grey-brown. NO compound leaflets — always a single leaf per stem. Common in south and middle-belt Nigeria.
-• PALM OIL (Nkwu/Kwakwa | Elaeis guineensis): Long feathery fronds 3-5m, many narrow leaflets.
-• MORINGA/ZOGALE (Moringa oleifera): Tiny (1-2cm) rounded leaflets, very delicate feathery compound.
-• NEEM/DONGOYARO (Azadirachta indica): PINNATE compound — 9-31 small sickle-shaped leaflets like a FEATHER. NEVER palmate.
-• COCONUT (Agbon/Kwakwa | Cocos nucifera): Very long feathery fronds from tall unbranched trunk.
-• PINEAPPLE (Ọpẹ oyinbo/Abarba | Ananas): Stiff sword-like serrated leaves in rosette pattern.
-• AVOCADO (Pia | Persea): Single oval glossy leaves 10-20cm, dense tree canopy.
-
-WEEDS (always is_weed=true, always is_healthy=false):
-• SIAM WEED (Chromolaena odorata): Opposite triangular leaves 5-10cm, 3 veins from base, VERY strong smell, white-purple flowers.
-• SPEAR GRASS (Imperata cylindrica): Thin sharp grass, fluffy WHITE/SILVER seed heads.
-• STRIGA/WITCHWEED (Striga hermonthica): Tiny 15-30cm at cereal roots, narrow leaves, pink/purple tubular flowers. PARASITIC.
-• TRIDAX DAISY (Tridax procumbens): Rough hairy leaves, yellow-white daisy flowers on long stems.
-• PIGWEED WITH SPINES (Amaranthus spinosus): Like amaranthus but has SPINES at leaf axils.
-• MIMOSA/SENSITIVE PLANT (Mimosa pudica): Feathery leaves that FOLD when touched, pink ball flowers, prickly.
-• WATER HYACINTH (Eichhornia): Floating aquatic, glossy round leaves on inflated stalks, purple flowers.
-
-══════════════════════════════════════════════════════
-DISEASE & PEST RECOGNITION
-══════════════════════════════════════════════════════
-
-DISEASES (look for these on the leaves/stems):
-• Cassava Mosaic Disease: Yellow-green mosaic pattern on cassava leaves, leaf distortion
-• Cassava Brown Streak: Brown streaks on stems, yellowing, root necrosis
-• Tomato Early Blight: Dark spots with yellow rings (target pattern) on lower leaves
-• Tomato Late Blight: Water-soaked dark lesions, white mold on leaf undersides
-• Maize Streak Virus: Yellow streaks along maize leaf veins
-• Maize Grey Leaf Spot: Rectangular grey lesions between veins
-• Cercospora Leaf Spot: Circular spots with grey center and yellow halo
-• Powdery Mildew: White powdery coating on leaf surface
-• Rust Disease: Orange/brown pustules on leaf undersides
-• Root Rot: Yellowing from bottom up, stem turning brown at base
-• Bacterial Blight: Water-soaked lesions turning brown, angular leaf spots
-
-NUTRIENT DEFICIENCIES (look for patterns):
-• Nitrogen deficiency: Yellowing starts at oldest/lower leaves, moves upward
-• Phosphorus deficiency: Purple/reddish coloring on leaves and stems
-• Potassium deficiency: Brown scorching on leaf edges and tips
-• Iron deficiency: Yellowing between veins (veins stay green) on young leaves
-• Magnesium deficiency: Yellowing between veins on older leaves
-
-PESTS (look for damage signs):
-• Fall Armyworm: Ragged holes in maize leaves, frass (droppings) in leaf whorl
-• Aphids: Tiny insects on undersides, sticky honeydew, curled leaves
-• Spider Mites: Fine webbing, yellow stippling on leaves
-• Whiteflies: Small white insects that fly up when disturbed
-• Stem Borers: Entry holes in stems, dead hearts in young plants
-
-══════════════════════════════════════════════════════
-CONFIDENCE CALIBRATION RULES
-══════════════════════════════════════════════════════
-
-Set identification_confidence honestly:
-• 90-99%: You can clearly see ALL key features — leaf shape, texture, veins, stem, fruit/flower if present
-• 75-89%: Most key features visible but lighting or angle slightly limits certainty
-• 60-74%: Some features match but image quality or unusual variety creates doubt
-• Below 60%: State the top 2-3 most likely candidates in identification_notes
-
-For Nigerian farms the MOST COMMON plants you will see are:
-Cassava, Maize, Yam, Tomato, Okra, Cowpea, Cashew, Mango, Plantain, Pawpaw, Oil Palm.
-When in doubt between an exotic plant and a common Nigerian crop — lean toward the common crop.
-
-
-Farmer is in ${locationStr}.
-- For local_products: name actual products available in ${city ?? region} markets
-- Mention specific markets/agro-dealers in ${city ?? region} if you know them  
-- For organic_option: mention locally available materials in ${city ?? region}
-  (neem leaves, wood ash, pepper extract, cow dung, compost)
-- For treatment steps: consider the current season in ${region} and local availability
-
-══════════════════════════════════════════════════════
-RESPONSE FORMAT — VALID JSON ONLY
-══════════════════════════════════════════════════════
-Respond ONLY with valid JSON. No markdown. No backticks. No extra text.
+Respond ONLY with valid JSON. No markdown. No backticks. No extra text outside the JSON.
 
 {
   "not_a_plant": false,
-  "plant_type": "crop OR weed OR tree OR grass OR unknown",
-  "crop_identified": "Full common name (Local names in brackets)",
-  "scientific_name": "Latin name",
-  "identification_confidence": 85,
-  "identification_notes": "Specific visual features that led to this identification — be precise",
+  "plant_type": "crop OR weed OR tree OR ornamental OR grass OR herb OR unknown",
+  "crop_identified": "Exact common name of the plant",
+  "scientific_name": "Latin binomial name",
+  "identification_confidence": 90,
+  "identification_notes": "What specific visual features in this image led to your identification",
   "is_weed": false,
   "weed_action": null,
   "is_healthy": true,
-  "health_summary": "One sentence: what the overall health status is and why — in ${langName}",
-  "diagnosis": "Specific name of disease/pest/deficiency OR crop name + 'appears healthy' OR weed impact — in ${langName}",
-  "confidence": 85,
-  "severity": "none OR low OR moderate OR high OR critical",
-  "severity_explanation": "Why this severity level — in ${langName}",
-  "immediate_action": "Most urgent step right now — in ${langName}",
-  "steps": ["Step 1 in ${langName}", "Step 2", "Step 3", "Step 4"],
-  "local_products": [
-    {"name": "Product name", "price_naira": 2500, "where": "Specific market/shop in ${city ?? region}"}
-  ],
-  "organic_option": "Local organic treatment available in ${city ?? region} — in ${langName}",
-  "prevention": "How to prevent this problem — in ${langName}"
-}`;
+  "health_summary": "One sentence about overall health",
+  "diagnosis": "Disease/pest/deficiency name OR plant name + 'appears healthy' OR weed impact",
+  "confidence": 90,
+  "severity": "none",
+  "severity_explanation": "Why this severity",
+  "immediate_action": "Most urgent step right now",
+  "steps": ["Step 1", "Step 2", "Step 3"],
+  "local_products": [{"name": "Product", "price_naira": 2000, "where": "Local market"}],
+  "organic_option": "Local organic treatment if applicable",
+  "prevention": "How to prevent this problem"
+}
 
-  const imageContent = captures.map((cap, idx) => ({
+If the image does not contain a plant, set "not_a_plant": true and "message": "Ask the farmer to take a photo of a plant."
+severity must be "none" for healthy plants, "low/moderate/high/critical" for problems.
+is_healthy must be false for weeds regardless of how green they look.`;
+
+  const imageContent = captures.map(cap => ({
     type: "image_url",
-    image_url: { 
+    image_url: {
       url: `data:image/jpeg;base64,${cap.base64}`,
       detail: "high"
     }
   }));
 
-  const angleLabels = captures.map(c => c.angle).join(" + ");
-  const corrections_reminder = corrections.length > 0
-    ? `\n\nCRITICAL: Do NOT identify as: ${corrections.map(c => `"${c.wrong_id}"`).join(", ")}. The farmer has corrected these mistakes before.`
-    : "";
-
-  // Vision-capable models in priority order — first that works is used
-  const VISION_MODELS = [
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
-    "meta-llama/llama-4-scout-17b-16e-instruct",
-    "llama-3.2-90b-vision-preview",
-  ];
-
-  let res, lastError;
-  for (const model of VISION_MODELS) {
-    try {
-      res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
-        body: JSON.stringify({
-          model,
-          max_tokens: 1500,
-          temperature: 0.05,
-          messages: [
-            { role: "system", content: system },
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_KEY}`
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+      max_tokens: 1200,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: [
+            ...imageContent,
             {
-              role: "user",
-              content: [
-                ...imageContent,
-                {
-                  type: "text",
-                  text: `Carefully identify this plant using ${captures.length} photo(s) from angles: ${angleLabels}.
-Farmer is in ${locationStr}.
-Use ALL photos together to make the MOST ACCURATE identification.
-Use ALL the visual description rules.${corrections_reminder}
-Remember: is_healthy=true ONLY if no disease/pest signs. Weeds are NEVER healthy.
-Severity must be "none" for healthy plants.
-Respond entirely in ${langName}.`
-                }
-              ]
+              type: "text",
+              text: `Identify this plant. Farmer is in ${locationStr}. Look carefully at the actual visual features — leaf shape, texture, colour, structure. Identify exactly what you see, not what is most common in Nigeria. Respond in ${langName}.`
             }
           ]
-        })
-      });
-      if (res.ok) break;
-      const errBody = await res.json().catch(() => ({}));
-      lastError = errBody.error?.message ?? `Model ${model} failed`;
-      res = null;
-    } catch (e) {
-      lastError = e.message;
-      res = null;
-    }
-  }
+        }
+      ]
+    })
+  });
 
-  if (!res) throw new Error("Scan service temporarily unavailable. Please try again in a moment.");
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    // If maverick model unavailable, fall back to scout
+    if (res.status === 404 || res.status === 400) {
+      return scanWithFallback(captures, system, locationStr, langName, GROQ_KEY);
+    }
+    throw new Error(e.error?.message ?? "Scan failed. Check your internet and try again.");
+  }
 
   const data = await res.json();
   const raw  = data.choices[0].message.content;
-  console.log("AI Raw Response:", raw);
-  const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
 
-  // Enforce consistency rules in JS as a safety net
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch {
+    // Sometimes the model wraps in text — extract JSON block
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      parsed = JSON.parse(match[0]);
+    } else {
+      throw new Error("Could not read scan result. Please try again.");
+    }
+  }
+
+  // Safety net — enforce logical consistency
   if (parsed.is_weed) {
     parsed.is_healthy = false;
     if (!parsed.severity || parsed.severity === "none" || parsed.severity === "low") {
       parsed.severity = "moderate";
     }
   }
-  if (parsed.is_healthy) {
-    parsed.severity = "none";
-  }
+  if (parsed.is_healthy) parsed.severity = "none";
   if (parsed.severity === "none" && !parsed.is_healthy && !parsed.is_weed) {
-    parsed.severity = "low"; // diseased crop can't have "none" severity
+    parsed.severity = "low";
   }
 
   if (captures.length === 1) SCAN_CACHE.set(cacheKey(captures[0].base64), parsed);
   return parsed;
+}
+
+// ── Fallback to scout model if maverick unavailable ───────────────────
+async function scanWithFallback(captures, system, locationStr, langName, GROQ_KEY) {
+  const imageContent = captures.map(cap => ({
+    type: "image_url",
+    image_url: { url: `data:image/jpeg;base64,${cap.base64}`, detail: "high" }
+  }));
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      max_tokens: 1200,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: [
+            ...imageContent,
+            { type: "text", text: `Identify this plant. Farmer is in ${locationStr}. Respond in ${langName}.` }
+          ]
+        }
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message ?? "Scan failed. Check your internet and try again.");
+  }
+
+  const data = await res.json();
+  const raw  = data.choices[0].message.content;
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error("Could not read scan result. Please try again.");
+  }
 }

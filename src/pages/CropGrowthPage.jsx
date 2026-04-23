@@ -350,6 +350,7 @@ export default function CropGrowthPage() {
   const harvestDays = result ? daysFromNow(result.harvest_date) : null;
 
   const iClass = "w-full bg-white dark:bg-dark-mid rounded-xl px-4 h-12 text-ink dark:text-white border border-deep-light dark:border-dark-light focus:border-terra outline-none text-sm shadow-sm";
+  const selectClass = "w-full bg-white dark:bg-dark-mid rounded-xl px-4 h-12 text-ink dark:text-white border border-deep-light dark:border-dark-light focus:border-terra outline-none text-sm shadow-sm appearance-none cursor-pointer";
   const labelClass = "text-ink-500 dark:text-gray-400 text-sm mb-1.5 block font-medium";
 
   return (
@@ -748,6 +749,21 @@ export default function CropGrowthPage() {
                 <div className="space-y-3">
                   {result.key_milestones.map((m, i) => {
                     const past = parseDate(m.date) < new Date();
+                    // Pick icon from event text keywords — AI doesn't return icon field
+                    const eventLower = (m.event || "").toLowerCase();
+                    const milestoneIcon = past ? "✅" :
+                      eventLower.includes("germ") || eventLower.includes("sprout") || eventLower.includes("plant") ? "🌱" :
+                      eventLower.includes("flower") || eventLower.includes("blossom") ? "🌸" :
+                      eventLower.includes("fruit") || eventLower.includes("pod") || eventLower.includes("tuber") ? "🍅" :
+                      eventLower.includes("harvest") || eventLower.includes("ready") || eventLower.includes("mature") ? "🌾" :
+                      eventLower.includes("water") || eventLower.includes("irrigat") ? "💧" :
+                      eventLower.includes("fertiliz") || eventLower.includes("manure") || eventLower.includes("npk") ? "🌿" :
+                      eventLower.includes("pest") || eventLower.includes("disease") || eventLower.includes("spray") ? "🔬" :
+                      eventLower.includes("weed") ? "✂️" :
+                      eventLower.includes("rain") || eventLower.includes("weather") ? "🌧️" :
+                      eventLower.includes("leaf") || eventLower.includes("vegeta") || eventLower.includes("grow") ? "🍃" :
+                      eventLower.includes("sell") || eventLower.includes("market") ? "🏪" :
+                      ["🌱","🍃","🌸","🍅","🌾","💧","🌿"][i % 7];
                     return (
                       <div key={i} className="flex items-start gap-3">
                         <div style={{
@@ -755,9 +771,9 @@ export default function CropGrowthPage() {
                           background: past ? "#f0fdf4" : "#f9fafb",
                           border: `1.5px solid ${past ? "#22c55e" : "#e5e7eb"}`,
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 16,
+                          fontSize: 18,
                         }} className="dark:bg-dark-mid dark:border-gray-700">
-                          {past ? <IconCheckCircle size={16} color="#22c55e" /> : m.icon}
+                          {milestoneIcon}
                         </div>
                         <div>
                           <p className={`text-sm font-semibold ${past ? "text-ink-500 dark:text-gray-400 line-through" : "text-ink dark:text-white"}`}>

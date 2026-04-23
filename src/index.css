@@ -28,3 +28,29 @@ input:focus, select:focus, textarea:focus {
   border-color: #1E8A4C !important;
   box-shadow: 0 0 0 3px rgba(30,138,76,0.15);
 }
+
+/* ── Select dropdown styling ── */
+select {
+  background-color: #FFFFFF;
+  color: #1A2E22;
+}
+.dark select {
+  background-color: #1A3025;
+  color: #FFFFFF;
+}
+/* Option items inside the dropdown list */
+select option {
+  background-color: #FFFFFF;
+  color: #1A2E22;
+  padding: 8px 12px;
+}
+.dark select option {
+  background-color: #1A3025;
+  color: #FFFFFF;
+}
+/* Hover state for options (WebKit/Blink) */
+select option:checked,
+select option:hover {
+  background-color: #1E8A4C;
+  color: #FFFFFF;
+}

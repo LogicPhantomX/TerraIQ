@@ -51,14 +51,14 @@ function CountdownBar({ harvestedAt, shelfLifeDays }) {
   return (
     <div className={`rounded-2xl border p-4 ${style.bg} ${style.border}`}>
       <div className="flex justify-between items-center mb-2">
-        <p className={`text-xs font-bold uppercase tracking-wide ${style.text}`}>{t("harvest.shelfLife")}</p>
+        <p className={`text-xs font-bold uppercase tracking-wide ${style.text}`}>Shelf Life</p>
         <span className={`text-xs px-2 py-0.5 rounded-lg font-bold border ${style.bg} ${style.text} ${style.border}`}>
           {style.label}
         </span>
       </div>
 
       {days !== null && days <= 0 ? (
-        <p className={`text-2xl font-black ${style.text}`}>{t("harvest.expired")}</p>
+        <p className={`text-2xl font-black ${style.text}`}>Expired</p>
       ) : (
         <>
           <div className="flex items-end gap-1 mb-2">
@@ -108,9 +108,9 @@ export function HarvestPage() {
   }, []);
 
   const logHarvest = async () => {
-    if (!form.crop || !form.quantity) { toast.error(t("harvest.enterCropQty")); return; }
+    if (!form.crop || !form.quantity) { toast.error("Enter crop and quantity"); return; }
     setLoading(true);
-    const tid = toast.loading(t("harvest.logging"));
+    const tid = toast.loading("Predicting shelf life...");
     try {
       const prediction = await getShelfLifePrediction(
         form.crop, +form.quantity, form.storage,
@@ -157,38 +157,38 @@ export function HarvestPage() {
 
   return (
     <Layout>
-      <h1 className="text-ink dark:text-white text-3xl font-black mb-2">{t("harvest.title")}</h1>
-      <p className="text-ink-500 dark:text-gray-400 mb-6">{t("harvest.subtitle")}</p>
+      <h1 className="text-ink dark:text-white text-3xl font-black mb-2">Harvest Tracker</h1>
+      <p className="text-ink-500 dark:text-gray-400 mb-6">Log your harvest to track shelf life and get spoilage alerts.</p>
 
       {/* Form */}
       <div className="bg-white dark:bg-dark-surface rounded-2xl border border-deep-light dark:border-dark-light p-6 mb-5 shadow-card space-y-4">
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("harvest.crop")} *</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Crop *</label>
             <input value={form.crop} onChange={e=>setForm(p=>({...p,crop:e.target.value}))}
               placeholder="e.g. Yam, Tomato, Maize" className={iClass} />
           </div>
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("harvest.quantity")} *</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Quantity (kg) *</label>
             <input type="number" value={form.quantity} onChange={e=>setForm(p=>({...p,quantity:e.target.value}))}
               placeholder="e.g. 200" className={iClass} />
           </div>
         </div>
         <div className="grid md:grid-cols-3 gap-4">
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("harvest.storage")}</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Storage method</label>
             <select value={form.storage} onChange={e=>setForm(p=>({...p,storage:e.target.value}))} className={iClass}>
               {["room_temp","cool_dry","refrigerated","barn","silo","underground"].map(s =>
                 <option key={s} value={s}>{s.replace("_"," ")}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("harvest.temperature")}</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Temperature (°C)</label>
             <input type="number" value={form.temp} onChange={e=>setForm(p=>({...p,temp:e.target.value}))}
               placeholder="28" className={iClass} />
           </div>
           <div>
-            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">{t("harvest.humidity")}</label>
+            <label className="text-ink-500 dark:text-gray-400 text-sm mb-1.5 block">Humidity (%)</label>
             <input type="number" value={form.humidity} onChange={e=>setForm(p=>({...p,humidity:e.target.value}))}
               placeholder="60" className={iClass} />
           </div>
@@ -206,7 +206,7 @@ export function HarvestPage() {
           {result.summary && <p className="text-ink-500 dark:text-gray-400 text-sm px-1">{result.summary}</p>}
           {result.storage_tips?.length > 0 && (
             <div className="bg-white dark:bg-dark-surface rounded-2xl border border-deep-light dark:border-dark-light p-4 shadow-card">
-              <p className="text-ink dark:text-white font-semibold text-sm mb-2">{t("harvest.storageTips")}</p>
+              <p className="text-ink dark:text-white font-semibold text-sm mb-2">Storage Tips</p>
               <ul className="space-y-1">{result.storage_tips.map((tip,i) =>
                 <li key={i} className="text-ink-500 dark:text-gray-400 text-sm">• {tip}</li>)}</ul>
             </div>
@@ -217,14 +217,14 @@ export function HarvestPage() {
       {/* Harvest history */}
       <div className="bg-white dark:bg-dark-surface rounded-2xl border border-deep-light dark:border-dark-light shadow-card">
         <div className="px-5 py-4 border-b border-deep-light dark:border-dark-light">
-          <h2 className="text-ink dark:text-white font-bold">{t("harvest.history")}</h2>
-          <p className="text-ink-500 dark:text-gray-500 text-xs mt-0.5">{t("harvest.countdownNote")}</p>
+          <h2 className="text-ink dark:text-white font-bold">Harvest History</h2>
+          <p className="text-ink-500 dark:text-gray-500 text-xs mt-0.5">Countdown updates automatically each day</p>
         </div>
         {fetching ? (
           <div className="p-8 flex justify-center"><div className="w-6 h-6 border-2 border-terra border-t-transparent rounded-full animate-spin" /></div>
         ) : harvests.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="text-ink-500 dark:text-gray-400 text-sm">{t("harvest.noHarvests")}</p>
+            <p className="text-ink-500 dark:text-gray-400 text-sm">No harvests logged yet.</p>
           </div>
         ) : harvests.map(h => {
           // Compute live days remaining — this is the key fix
@@ -251,11 +251,11 @@ export function HarvestPage() {
                 {/* Live countdown number */}
                 <div className="text-right ml-4 shrink-0">
                   {liveDays !== null && liveDays <= 0 ? (
-                    <p className={`text-base font-bold ${style.text}`}>{t("harvest.expired")}</p>
+                    <p className={`text-base font-bold ${style.text}`}>Expired</p>
                   ) : (
                     <>
                       <p className={`text-2xl font-black ${style.text}`}>{liveDays ?? "–"}</p>
-                      <p className="text-ink-500 dark:text-gray-500 text-xs">{t("harvest.daysLeft")}</p>
+                      <p className="text-ink-500 dark:text-gray-500 text-xs">days</p>
                     </>
                   )}
                 </div>
