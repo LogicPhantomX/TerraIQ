@@ -300,7 +300,7 @@ export async function analyseImageWithGroq(base64Image, region, lang = "en") {
       "Authorization": `Bearer ${GROQ_KEY}`,
     },
     body: JSON.stringify({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
       max_tokens: 1000,
       messages: [
         {

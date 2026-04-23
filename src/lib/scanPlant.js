@@ -118,7 +118,7 @@ TREES & FRUITS:
 • BANANA (Unere/Ayaba | Musa acuminata): Like plantain but shorter, narrower leaves.
 • PAWPAW (Ìbọ̀pẹ/Gwanda | Carica papaya): Very large deeply lobed leaves 30-60cm, unbranched trunk.
 • MANGO (Mangoro | Mangifera indica): Single glossy lance leaves 15-35cm clustered at branch tips.
-• CASHEW (Kaju | Anacardium): Single smooth oval leathery leaf 10-20cm, no compound leaflets.
+• CASHEW (Kaju | Anacardium occidentale): Single smooth OVAL leathery leaf 10-20cm, rounded tip, slightly wavy margin, prominent midrib, reddish young leaves, old leaves dark glossy green. Leaves clustered at branch tips. Bark is smooth grey-brown. NO compound leaflets — always a single leaf per stem. Common in south and middle-belt Nigeria.
 • PALM OIL (Nkwu/Kwakwa | Elaeis guineensis): Long feathery fronds 3-5m, many narrow leaflets.
 • MORINGA/ZOGALE (Moringa oleifera): Tiny (1-2cm) rounded leaflets, very delicate feathery compound.
 • NEEM/DONGOYARO (Azadirachta indica): PINNATE compound — 9-31 small sickle-shaped leaflets like a FEATHER. NEVER palmate.
@@ -167,8 +167,20 @@ PESTS (look for damage signs):
 • Stem Borers: Entry holes in stems, dead hearts in young plants
 
 ══════════════════════════════════════════════════════
-LOCATION-SPECIFIC ADVICE
+CONFIDENCE CALIBRATION RULES
 ══════════════════════════════════════════════════════
+
+Set identification_confidence honestly:
+• 90-99%: You can clearly see ALL key features — leaf shape, texture, veins, stem, fruit/flower if present
+• 75-89%: Most key features visible but lighting or angle slightly limits certainty
+• 60-74%: Some features match but image quality or unusual variety creates doubt
+• Below 60%: State the top 2-3 most likely candidates in identification_notes
+
+For Nigerian farms the MOST COMMON plants you will see are:
+Cassava, Maize, Yam, Tomato, Okra, Cowpea, Cashew, Mango, Plantain, Pawpaw, Oil Palm.
+When in doubt between an exotic plant and a common Nigerian crop — lean toward the common crop.
+
+
 Farmer is in ${locationStr}.
 - For local_products: name actual products available in ${city ?? region} markets
 - Mention specific markets/agro-dealers in ${city ?? region} if you know them  
@@ -218,39 +230,55 @@ Respond ONLY with valid JSON. No markdown. No backticks. No extra text.
     ? `\n\nCRITICAL: Do NOT identify as: ${corrections.map(c => `"${c.wrong_id}"`).join(", ")}. The farmer has corrected these mistakes before.`
     : "";
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: "llama-4-scout-17b-16e-instruct",
-      max_tokens: 1500,
-      temperature: 0.05,
-      messages: [
-        { role: "system", content: system },
-        {
-          role: "user",
-          content: [
-            ...imageContent,
+  // Vision-capable models in priority order — first that works is used
+  const VISION_MODELS = [
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "llama-3.2-90b-vision-preview",
+    "llama-3.2-11b-vision-preview",
+  ];
+
+  let res, lastError;
+  for (const model of VISION_MODELS) {
+    try {
+      res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1500,
+          temperature: 0.05,
+          messages: [
+            { role: "system", content: system },
             {
-              type: "text",
-              text: `Carefully identify this plant using ${captures.length} photo(s) from angles: ${angleLabels}.
+              role: "user",
+              content: [
+                ...imageContent,
+                {
+                  type: "text",
+                  text: `Carefully identify this plant using ${captures.length} photo(s) from angles: ${angleLabels}.
 Farmer is in ${locationStr}.
 Use ALL photos together to make the MOST ACCURATE identification.
 Use ALL the visual description rules.${corrections_reminder}
 Remember: is_healthy=true ONLY if no disease/pest signs. Weeds are NEVER healthy.
 Severity must be "none" for healthy plants.
 Respond entirely in ${langName}.`
+                }
+              ]
             }
           ]
-        }
-      ]
-    })
-  });
-
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    throw new Error(e.error?.message ?? "Scan failed. Check your internet and try again.");
+        })
+      });
+      if (res.ok) break;
+      const errBody = await res.json().catch(() => ({}));
+      lastError = errBody.error?.message ?? `Model ${model} failed`;
+      res = null;
+    } catch (e) {
+      lastError = e.message;
+      res = null;
+    }
   }
+
+  if (!res) throw new Error(lastError ?? "Scan failed. Check your internet and try again.");
 
   const data = await res.json();
   const raw  = data.choices[0].message.content;
