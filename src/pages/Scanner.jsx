@@ -538,12 +538,17 @@ export default function ScannerPage() {
               <div className="bg-white dark:bg-dark-surface rounded-2xl p-5 border border-deep-light dark:border-dark-light shadow-card">
                 <p className="text-ink dark:text-white font-bold mb-3">{t("scanner.localProducts")}</p>
                 {result.local_products.map((p,i) => (
-                  <div key={i} className="bg-deep-mid dark:bg-dark-mid rounded-xl p-3 flex justify-between items-start mb-2 last:mb-0">
-                    <div>
-                      <p className="text-ink dark:text-white text-sm font-semibold">{p.name}</p>
-                      <p className="text-ink-500 dark:text-gray-500 text-xs">{p.where}</p>
+                  <div key={i} className="bg-deep-mid dark:bg-dark-mid rounded-xl p-3 mb-2 last:mb-0">
+                    <div className="flex justify-between items-start mb-1">
+                      <div>
+                        <p className="text-ink dark:text-white text-sm font-semibold">{p.name}</p>
+                        <p className="text-ink-500 dark:text-gray-500 text-xs">{p.where}</p>
+                      </div>
+                      <p className="text-terra font-bold text-sm shrink-0 ml-3">₦{p.price_naira?.toLocaleString()}</p>
                     </div>
-                    <p className="text-terra font-bold text-sm shrink-0 ml-3">₦{p.price_naira?.toLocaleString()}</p>
+                    {p.how_to_use && (
+                      <p className="text-sky text-xs mt-1 leading-relaxed">📋 {p.how_to_use}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -553,6 +558,13 @@ export default function ScannerPage() {
               <div className="bg-terra-light dark:bg-terra/10 border border-green-200 dark:border-terra/20 rounded-2xl p-4">
                 <p className="text-terra font-semibold text-sm mb-1">🌿 Organic Option</p>
                 <p className="text-ink-500 dark:text-gray-300 text-sm">{result.organic_option}</p>
+              </div>
+            )}
+
+            {result.prevention && (
+              <div className="bg-amber/10 border border-amber/30 rounded-2xl p-4">
+                <p className="text-amber font-semibold text-sm mb-1">🛡️ Prevention</p>
+                <p className="text-ink-500 dark:text-gray-300 text-sm leading-relaxed">{result.prevention}</p>
               </div>
             )}
 
