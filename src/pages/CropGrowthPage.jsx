@@ -739,11 +739,10 @@ export default function CropGrowthPage() {
                       {/* Expanded details */}
                       {isOpen && (
                         <div style={{
-                          background: `var(--expanded-bg, #f8faf9)`,
                           borderTop: `2px solid ${meta.color}20`,
                           padding: "16px 20px 16px 20px",
                         }}
-                          className="dark:bg-dark-mid"
+                          className="bg-[#f8faf9] dark:bg-dark-mid"
                         >
                           {/* What to expect */}
                           <div className="mb-3">
@@ -764,9 +763,9 @@ export default function CropGrowthPage() {
                           {/* Warning */}
                           {stage.warning && (
                             <div style={{
-                              background: "rgba(239,68,68,0.07)", borderRadius: 10,
+                              borderRadius: 10,
                               padding: "10px 12px", borderLeft: "3px solid #ef4444"
-                            }}>
+                            }} className="bg-red-50 dark:bg-red-900/20">
                               <p style={{ color: "#ef4444", fontSize: 11, fontWeight: 700, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
                                 <IconAlert size={12} color="#ef4444" /> {t("growth.watchOut").toUpperCase()}
                               </p>
