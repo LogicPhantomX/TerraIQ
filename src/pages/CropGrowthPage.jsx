@@ -107,6 +107,19 @@ const SEASON_OPTIONS = [
   { value:"harmattan", labelKey:"growth.harmattan" },
 ];
 
+// ── Dark mode helper ──────────────────────────────────────────────────
+function useIsDark() {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+  useEffect(() => {
+    const obs = new MutationObserver(() =>
+      setDark(document.documentElement.classList.contains("dark"))
+    );
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
+}
+
 // ── AI function ───────────────────────────────────────────────────────
 async function predictGrowth({ crop, plantingDate, region, soilCondition, season, lang }) {
   const langInstr = LANG_INSTRUCTION[lang] ?? LANG_INSTRUCTION.en;
@@ -304,6 +317,8 @@ export default function CropGrowthPage() {
   const lang     = useFarmerLanguage();
   const { t }    = useTranslation();
   const cropList = NIGERIAN_CROPS.map(c => c.name);
+
+  const isDark = useIsDark();
 
   const [form, setForm] = useState({
     crop: "", plantingDate: new Date().toISOString().slice(0, 10),
@@ -739,17 +754,16 @@ export default function CropGrowthPage() {
                       {/* Expanded details */}
                       {isOpen && (
                         <div style={{
+                          background: isDark ? "#162E1F" : "#f8faf9",
                           borderTop: `2px solid ${meta.color}20`,
                           padding: "16px 20px 16px 20px",
-                        }}
-                          className="bg-[#f8faf9] dark:bg-dark-mid"
-                        >
+                        }}>
                           {/* What to expect */}
                           <div className="mb-3">
                             <p style={{ color: meta.color, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
                               <IconEye size={12} color={meta.color} /> {t("growth.whatToExpect").toUpperCase()}
                             </p>
-                            <p className="text-ink dark:text-white text-sm leading-relaxed">{stage.what_to_expect}</p>
+                            <p style={{ color: isDark ? "#ffffff" : "#0F1F17" }} className="text-sm leading-relaxed">{stage.what_to_expect}</p>
                           </div>
 
                           {/* Farmer action */}
@@ -757,19 +771,20 @@ export default function CropGrowthPage() {
                             <p style={{ color: meta.color, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
                               <IconCheck size={12} color={meta.color} /> {t("growth.yourAction").toUpperCase()}
                             </p>
-                            <p className="text-ink dark:text-white text-sm leading-relaxed">{stage.farmer_action}</p>
+                            <p style={{ color: isDark ? "#ffffff" : "#0F1F17" }} className="text-sm leading-relaxed">{stage.farmer_action}</p>
                           </div>
 
                           {/* Warning */}
                           {stage.warning && (
                             <div style={{
+                              background: isDark ? "rgba(239,68,68,0.18)" : "rgba(239,68,68,0.07)",
                               borderRadius: 10,
                               padding: "10px 12px", borderLeft: "3px solid #ef4444"
-                            }} className="bg-red-50 dark:bg-red-900/20">
+                            }}>
                               <p style={{ color: "#ef4444", fontSize: 11, fontWeight: 700, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
                                 <IconAlert size={12} color="#ef4444" /> {t("growth.watchOut").toUpperCase()}
                               </p>
-                              <p className="text-ink dark:text-white text-sm">{stage.warning}</p>
+                              <p style={{ color: isDark ? "#ffffff" : "#0F1F17" }} className="text-sm">{stage.warning}</p>
                             </div>
                           )}
                         </div>
