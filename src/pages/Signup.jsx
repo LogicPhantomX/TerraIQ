@@ -25,8 +25,9 @@ const CROP_CATEGORIES = [
 export default function SignupPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [step,    setStep]    = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [step,      setStep]      = useState(1);
+  const [loading,   setLoading]   = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [activeCategory, setActiveCategory] = useState("vegetable");
   const [form, setForm] = useState({
     fullName:"", email:"", password:"",
@@ -61,8 +62,8 @@ export default function SignupPage() {
           language:  form.language,
         });
       }
-      toast.success(t("common.accountCreated"));
-      navigate("/dashboard");
+      // Show email verification notice instead of navigating away
+      setEmailSent(true);
     } catch(e) { toast.error(e.message); }
     setLoading(false);
   };
@@ -71,6 +72,46 @@ export default function SignupPage() {
   const btnClass = "flex-1 h-12 rounded-xl font-bold transition-colors";
 
   const visibleCrops = NIGERIAN_CROPS.filter(c => c.category === activeCategory);
+
+  // ── Email verification screen ──────────────────────────────────────
+  if (emailSent) return (
+    <div className="min-h-screen bg-deep-mid dark:bg-dark-base flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md text-center">
+        <img src="/icon.png" alt="TerraIQ+" style={{ width:64, height:64, borderRadius:16, objectFit:"cover", margin:"0 auto 24px", display:"block" }} />
+        <div className="bg-white dark:bg-dark-surface rounded-3xl p-8 border border-deep-light dark:border-dark-light shadow-card">
+          <div className="w-16 h-16 bg-terra-light dark:bg-terra/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-terra">
+              <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+          </div>
+          <h2 className="text-ink dark:text-white text-2xl font-black mb-2">Check your email</h2>
+          <p className="text-ink-500 dark:text-gray-400 text-sm leading-relaxed mb-1">
+            We sent a verification link to
+          </p>
+          <p className="text-terra font-bold text-sm mb-4">{form.email}</p>
+          <p className="text-ink-500 dark:text-gray-400 text-sm leading-relaxed mb-6">
+            Click the link in the email to verify your account, then you can sign in to TerraIQ+.
+          </p>
+          <div className="bg-deep-mid dark:bg-dark-mid rounded-xl p-4 text-left mb-6 border border-deep-light dark:border-dark-light">
+            <p className="text-ink-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">Didn't get the email?</p>
+            <ul className="text-ink-500 dark:text-gray-400 text-sm space-y-1 list-disc list-inside">
+              <li>Check your spam or junk folder</li>
+              <li>Make sure <span className="text-terra font-medium">{form.email}</span> is correct</li>
+            </ul>
+          </div>
+          <button
+            onClick={() => navigate("/login")}
+            className="w-full bg-terra text-white h-12 rounded-xl font-bold hover:bg-terra-dark transition-colors shadow-sm"
+          >
+            Go to Sign In
+          </button>
+        </div>
+        <p className="text-center text-ink-500 dark:text-gray-400 mt-6 text-sm">
+          Wrong email? <button onClick={() => { setEmailSent(false); setStep(1); }} className="text-terra font-semibold">Go back</button>
+        </p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-deep-mid dark:bg-dark-base flex items-center justify-center px-4 py-10">

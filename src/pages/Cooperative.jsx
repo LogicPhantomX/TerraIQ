@@ -225,13 +225,37 @@ export default function CoopPage() {
     setCreating(true);
     const tid = toast.loading("Creating cooperative...");
     const { data: { session: _authSess } } = await supabase.auth.getSession();
-      const user = _authSess?.user;
+    const user = _authSess?.user;
+    if (!user) { toast.dismiss(tid); toast.error("Not logged in"); setCreating(false); return; }
+
+    // Ensure the profile row exists before inserting cooperative (avoids FK violation)
+    const { data: existingProfile } = await supabase
+      .from("profiles").select("id").eq("id", user.id).maybeSingle();
+    if (!existingProfile) {
+      const { error: profileErr } = await supabase.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name ?? "",
+        role: "farmer",
+      });
+      if (profileErr) {
+        toast.dismiss(tid);
+        toast.error("Profile not ready. Please update your profile and try again.");
+        setCreating(false); return;
+      }
+    }
+
     const invite_code = generateInviteCode().toLowerCase();
     const { data: c, error } = await supabase.from("cooperatives")
       .insert({ name:coopName, region:coopState, city:coopCity, admin_id:user.id, invite_code })
       .select().single();
     if (error) { toast.dismiss(tid); toast.error(error.message); setCreating(false); return; }
-    await supabase.from("cooperative_members").insert({ cooperative_id:c.id, user_id:user.id, role:"admin" });
+
+    // Insert member row after cooperative is confirmed created
+    const { error: memErr } = await supabase.from("cooperative_members")
+      .insert({ cooperative_id:c.id, user_id:user.id, role:"admin" });
+    if (memErr) { toast.dismiss(tid); toast.error(memErr.message); setCreating(false); return; }
+
     toast.dismiss(tid); toast.success("Cooperative created!");
     await loadData(); setCreating(false);
   };
