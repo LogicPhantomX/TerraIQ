@@ -351,36 +351,43 @@ export function MarketPage() {
       const system = `You are TerraIQ+, an agricultural market advisor for Nigerian farmers.
 LANGUAGE: ${langInstr}. ALL text in ${langName} except product names, prices, and place names.
 FARMER LOCATION: ${primaryLocation}, Nigeria.
+CURRENT DATE: ${new Date().toLocaleDateString("en-NG", { day:"numeric", month:"long", year:"numeric" })} (${new Date().getFullYear()}).
+
+IMPORTANT — PRICE ACCURACY:
+- All prices MUST reflect actual Nigerian market prices as of ${new Date().getFullYear()}
+- Account for current naira inflation and recent exchange rate changes
+- Do NOT use pre-2025 prices — Nigerian commodity prices have risen significantly
+- Typical 2026 price ranges: Maize ₦400-700/kg, Tomatoes ₦600-1200/kg, Cassava ₦180-350/kg, Rice ₦900-1400/kg, Yam ₦500-900/kg
 
 Give market advice that is SPECIFIC to ${primaryLocation}.
 - Primary prices: give the current price in ${city || region} first
-- Secondary: mention nearby bigger markets like Ibadan, Lagos, or Kano as reference
+- Secondary: mention nearby bigger markets like Ibadan, Lagos, Kano, Onitsha as reference
 - Local buyers: name specific market types, agro-dealers, and buying agents in ${city || region}
 - Transport: give practical advice for farmers in ${city || region}
-- Seasonal tips: note if this is the right selling time in ${region}
+- Seasonal tips: note if this is the right selling time in ${region} given current ${new Date().toLocaleDateString("en-NG", { month:"long" })} season
 
 Respond ONLY with valid JSON. No markdown.
 {
-  "current_price_per_kg": 380,
-  "current_price_per_tonne": 380000,
+  "current_price_per_kg": 500,
+  "current_price_per_tonne": 500000,
   "price_trend": "rising / falling / stable",
-  "trend_reason": "string in ${langName}",
+  "trend_reason": "string in ${langName} — mention 2026 market conditions",
   "primary_market": {
     "name": "specific market name in ${city || region}",
     "location": "${primaryLocation}",
-    "price_per_kg": 380,
+    "price_per_kg": 500,
     "why_best": "string in ${langName}"
   },
   "secondary_markets": [
-    { "name": "market name", "location": "city", "price_per_kg": 400, "distance_note": "string" },
-    { "name": "market name", "location": "city", "price_per_kg": 350, "distance_note": "string" }
+    { "name": "market name", "location": "city", "price_per_kg": 520, "distance_note": "string" },
+    { "name": "market name", "location": "city", "price_per_kg": 480, "distance_note": "string" }
   ],
-  "best_time_to_sell": "string in ${langName} — specific to current season",
+  "best_time_to_sell": "string in ${langName} — specific to current season and month",
   "negotiation_tips": ["tip in ${langName}", "tip", "tip"],
   "local_buyers": ["buyer type in ${primaryLocation}", "buyer type", "buyer type"],
   "transport_advice": "string in ${langName} for farmers in ${primaryLocation}",
   "processing_option": "string in ${langName} — can they add value to get a better price?",
-  "price_forecast_30_days": "string in ${langName}"
+  "price_forecast_30_days": "string in ${langName} — forecast for next 30 days from ${new Date().toLocaleDateString("en-NG", { month:"long", year:"numeric" })}"
 }`;
 
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -388,10 +395,10 @@ Respond ONLY with valid JSON. No markdown.
         headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${import.meta.env.VITE_GROQ_KEY}` },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          max_tokens: 900,
+          max_tokens: 1400,
           messages:[
             { role:"system", content:system },
-            { role:"user",   content:`I have ${qty || "some"} kg of ${crop} to sell. I am in ${primaryLocation}. Give me city-specific market advice including where to sell in ${city || region} and nearby markets. Current date context: ${new Date().toLocaleDateString("en-NG", { month:"long", year:"numeric" })}. Language: ${langName}.` },
+            { role:"user",   content:`I have ${qty || "some"} kg of ${crop} to sell. I am in ${primaryLocation}. Give me city-specific market advice including where to sell in ${city || region} and nearby markets. Current date: ${new Date().toLocaleDateString("en-NG", { day:"numeric", month:"long", year:"numeric" })}. Use ${new Date().getFullYear()} Nigerian market prices — account for current naira rates and inflation. Language: ${langName}.` },
           ],
         }),
       });
