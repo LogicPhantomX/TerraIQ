@@ -12,6 +12,25 @@ import { checkAndNotify } from "@/lib/notifications";
 import { keepSupabaseAwake } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
+
+
+// Get the best available display name — never fall back to generic "Farmer"
+function getDisplayName(profile) {
+  if (!profile) return "";
+  const full = profile.full_name?.trim();
+  if (full) return full.split(" ")[0]; // first name
+  if (profile.farm_name) return profile.farm_name.split(" ")[0];
+  return ""; // empty — greet without a name
+}
+
+// Returns the correct i18n greeting key based on current local time
+function getGreetingKey() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "dashboard.greetingMorning";
+  if (hour >= 12 && hour < 17) return "dashboard.greetingAfternoon";
+  return "dashboard.greetingEvening";
+}
+
 function norm(v) { return (v??"").toString().toLowerCase().trim(); }
 
 const SEV = {
@@ -54,15 +73,17 @@ useEffect(() => {
     checkAndNotify(user.id, p?.region);
     keepSupabaseAwake();
   })();
-   // Check if user just confirmed their email
+}, []);
+
+// Check if user just confirmed their email
+useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const type = params.get("type");
   if (type === "signup" || type === "email_change") {
     toast.success(t("common.emailConfirmed"));
-    // Clear the URL params
     window.history.replaceState({}, "", window.location.pathname);
-  }   
-}, []);
+  }
+}, [t]);
 
   if (loading) return <Layout><DashboardSkeleton /></Layout>;
 
@@ -71,9 +92,9 @@ useEffect(() => {
       {/* Greeting */}
       <div className="mb-6">
         <h1 className="text-ink dark:text-white text-3xl font-black">
-          {t("dashboard.greeting")}, {profile?.full_name?.split(" ")[0] ?? "Farmer"} 👋
+          {t(getGreetingKey())}{getDisplayName(profile) ? `, ${getDisplayName(profile)}` : ""} 👋
         </h1>
-        <p className="text-ink-500 dark:text-gray-400 mt-1">{profile?.farm_name} · {profile?.region}</p>
+        <p className="text-ink-500 dark:text-gray-400 mt-1">{profile?.farm_name ? `${profile.farm_name} · ` : ""}{profile?.city && profile?.region ? `${profile.city}, ${profile.region}` : profile?.region ?? ""}</p>
       </div>
 
       {/* Welcome banner for new users */}

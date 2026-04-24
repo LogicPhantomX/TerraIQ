@@ -105,7 +105,7 @@ function AlertCard({ alert, userId }) {
                   </div>
                   <div className="flex-1 bg-white dark:bg-dark-surface rounded-xl px-3 py-2.5 border border-deep-light dark:border-dark-light">
                     <div className="flex justify-between items-center mb-1">
-                      <p className="text-ink dark:text-white text-xs font-semibold">{c.profiles?.full_name ?? "Farmer"}</p>
+                      <p className="text-ink dark:text-white text-xs font-semibold">{c.profiles?.full_name || c.profiles?.farm_name || "Member"}</p>
                       <p className="text-ink-500 dark:text-gray-500 text-xs">{format(new Date(c.created_at), "MMM d")}</p>
                     </div>
                     <p className="text-ink-500 dark:text-gray-300 text-sm">{c.body}</p>
@@ -211,6 +211,14 @@ export default function CoopPage() {
     setNearbyCoops(sorted);
   };
 
+  const generateInviteCode = () => {
+    // Generate a unique 8-char alphanumeric invite code
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars (0,O,1,I)
+    const statePrefix = coopState?.replace(/\s+state$/i, "").slice(0, 3).toUpperCase() || "TRQ";
+    const randomPart = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    return `${statePrefix}${randomPart}`;
+  };
+
   const handleCreate = async () => {
     if (!coopName) { toast.error("Enter cooperative name"); return; }
     if (!coopState || !coopCity) { toast.error("Select state and city"); return; }
@@ -218,8 +226,9 @@ export default function CoopPage() {
     const tid = toast.loading("Creating cooperative...");
     const { data: { session: _authSess } } = await supabase.auth.getSession();
       const user = _authSess?.user;
+    const invite_code = generateInviteCode().toLowerCase();
     const { data: c, error } = await supabase.from("cooperatives")
-      .insert({ name:coopName, region:coopState, city:coopCity, admin_id:user.id })
+      .insert({ name:coopName, region:coopState, city:coopCity, admin_id:user.id, invite_code })
       .select().single();
     if (error) { toast.dismiss(tid); toast.error(error.message); setCreating(false); return; }
     await supabase.from("cooperative_members").insert({ cooperative_id:c.id, user_id:user.id, role:"admin" });
@@ -231,8 +240,9 @@ export default function CoopPage() {
     const c_code = inviteCode ?? code;
     if (!c_code) { toast.error("Enter invite code"); return; }
     const tid = toast.loading("Joining cooperative...");
-    const { data: c } = await supabase.from("cooperatives").select("*").eq("invite_code", c_code.trim().toLowerCase()).maybeSingle();
-    if (!c) { toast.dismiss(tid); toast.error("Invalid invite code"); return; }
+    const normalised = c_code.trim().toLowerCase();
+    const { data: c } = await supabase.from("cooperatives").select("*").eq("invite_code", normalised).maybeSingle();
+    if (!c) { toast.dismiss(tid); toast.error("Invalid invite code. Double-check with your cooperative admin."); return; }
     const { data: { session: _authSess } } = await supabase.auth.getSession();
       const user = _authSess?.user;
     const { error } = await supabase.from("cooperative_members").insert({ cooperative_id:c.id, user_id:user.id, role:"member" });
@@ -428,7 +438,7 @@ export default function CoopPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-ink dark:text-white font-semibold text-sm">{m.profiles?.full_name ?? "Farmer"}</p>
+                    <p className="text-ink dark:text-white font-semibold text-sm">{m.profiles?.full_name || m.profiles?.farm_name || "Member"}</p>
                     {m.role === "admin" && <span className="bg-amber/10 text-amber text-xs px-2 py-0.5 rounded-lg font-semibold border border-amber/20">Admin</span>}
                   </div>
                   <p className="text-ink-500 dark:text-gray-500 text-xs mt-0.5">

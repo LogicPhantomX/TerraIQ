@@ -120,7 +120,7 @@ async function predictGrowth({ crop, plantingDate, region, soilCondition, season
     day: "numeric", month: "long", year: "numeric"
   }); // e.g. "22 April 2025"
 
-  const system = `You are TerraIQ+, an expert agronomist for Nigerian farmers.
+  const system = `You are TerraIQ+, an expert agronomist for Nigerian farmers with deep knowledge of Nigerian agriculture.
 LANGUAGE RULE: ${langInstr}
 ALL descriptive text must be in ${langName}. Numbers stay as numbers.
 
@@ -130,8 +130,37 @@ DATE FORMAT RULE — CRITICAL:
 - Compute each date by adding the correct number of days to ${plantingDate}
 - Double-check every date: they must be real calendar dates in chronological order
 
+ACCURATE NIGERIAN CROP DATA — use these verified growth periods and yields:
+| Crop | Days to Harvest | Typical Yield (kg/ha) | Current Market (₦/kg) |
+|------|----------------|----------------------|----------------------|
+| Maize | 90–120 days | 1,500–3,000 kg/ha | 546–1,160 |
+| Cassava | 270–365 days (9–12 months) | 15,000–30,000 kg/ha | 179–269 |
+| Rice (local) | 120–150 days | 2,000–4,000 kg/ha | 1,400–3,500 |
+| Tomato | 60–90 days | 10,000–20,000 kg/ha | 1,200–2,500 |
+| Yam | 240–300 days (8–10 months) | 8,000–15,000 kg/ha | 800–1,500 |
+| Groundnut | 90–120 days | 800–1,500 kg/ha | 2,600–7,000 |
+| Pepper (rodo/habanero) | 90–120 days | 5,000–10,000 kg/ha | 3,500–10,000 |
+| Soybean | 95–110 days | 1,000–2,000 kg/ha | 2,500–4,000 |
+| Cowpea (beans) | 65–90 days | 500–1,200 kg/ha | 1,200–2,500 |
+| Plantain | 300–365 days | 10,000–20,000 kg/ha | 500–1,500/kg |
+| Sweet Potato | 120–150 days | 8,000–15,000 kg/ha | 400–800 |
+| Watermelon | 70–90 days | 10,000–20,000 kg/ha | 150–400 |
+| Okra | 55–70 days | 3,000–8,000 kg/ha | 800–2,000 |
+| Cucumber | 50–70 days | 8,000–15,000 kg/ha | 500–1,500 |
+
+SEASONAL CONTEXT FOR NIGERIA (2026):
+- Rainy season: April–October (best for most crops)
+- Dry season: November–March (irrigation needed)
+- Harmattan: December–February (cool, dry winds, reduce irrigation frequency)
+- Current month: April — early rainy season, excellent for maize, tomato, pepper, cowpea
+
+SOIL CONDITION YIELD ADJUSTMENTS:
+- Good soil: use full yield range
+- Moderate soil: reduce yield by 25–35%
+- Poor soil: reduce yield by 40–55%
+
 You will predict a precise crop growth timeline for a Nigerian farmer.
-Be realistic about Nigerian climate, soil, and growing conditions.
+Be accurate and realistic using the data above. DO NOT underestimate Nigerian cassava or yam duration — they take months, not weeks.
 
 Respond ONLY with valid JSON. No markdown. No backticks. No explanation outside JSON.
 

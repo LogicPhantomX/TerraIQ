@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { askGroq } from "@/lib/api";
 
-// Fallback prices if AI call fails
+// Fallback prices — calibrated to April 2026 Nigerian market data
+// Sources: Supermart.ng, Jiji.ng, Selina Wamucii, Google AI Overview April 2026
 const FALLBACK_PRICES = [
-  { crop:"Maize",     price:320, trend:"up",   unit:"kg"  },
-  { crop:"Cassava",   price:185, trend:"stable",unit:"kg" },
-  { crop:"Tomato",    price:480, trend:"down",  unit:"kg" },
-  { crop:"Yam",       price:950, trend:"up",    unit:"kg" },
-  { crop:"Rice",      price:1200,trend:"stable",unit:"kg" },
-  { crop:"Groundnut", price:760, trend:"up",    unit:"kg" },
-  { crop:"Pepper",    price:1400,trend:"down",  unit:"kg" },
-  { crop:"Soybean",   price:580, trend:"stable",unit:"kg" },
+  { crop:"Maize",     price:850,  trend:"up",    unit:"kg" }, // wholesale ₦546–₦1,160/kg
+  { crop:"Cassava",   price:224,  trend:"stable", unit:"kg" }, // retail ₦179–₦269/kg
+  { crop:"Tomato",    price:1600, trend:"up",    unit:"kg" }, // retail ₦1,200–₦2,500/kg
+  { crop:"Yam",       price:1200, trend:"stable", unit:"kg" }, // varies by size/variety
+  { crop:"Rice",      price:1800, trend:"up",    unit:"kg" }, // ₦1,400–₦3,500+/kg
+  { crop:"Groundnut", price:4000, trend:"up",    unit:"kg" }, // ₦2,600–₦7,000/kg
+  { crop:"Pepper",    price:5500, trend:"down",  unit:"kg" }, // fresh ₦3,500–₦10,000+/kg
+  { crop:"Soybean",   price:3000, trend:"stable", unit:"kg" }, // ₦2,500–₦4,000+/kg
 ];
 
 const TREND_ICON = { up:"↑", down:"↓", stable:"→" };
@@ -21,21 +22,33 @@ const TREND_COLOR = {
 };
 
 async function fetchPrices(location) {
-  const system = `You are a Nigerian agricultural market analyst.
-Respond ONLY with valid JSON. No markdown. No backticks.
-Return current approximate market prices for these crops in ${location}, Nigeria.
+  const system = `You are a Nigerian agricultural market analyst with up-to-date 2026 market data.
+Respond ONLY with valid JSON array. No markdown. No backticks. No explanation.
+
+Return retail market prices per kg in Naira for these crops in ${location}, Nigeria.
+Use these verified April 2026 Nigerian market benchmarks as your baseline — adjust slightly for regional location:
+- Maize: ₦546–₦1,160/kg (wholesale to retail)
+- Cassava (fresh): ₦179–₦269/kg retail
+- Tomato: ₦1,200–₦2,500/kg retail (urban markets)
+- Yam: ₦800–₦1,500/kg depending on size
+- Rice: ₦1,400–₦3,500/kg (local to imported brands)
+- Groundnut: ₦2,600–₦7,000/kg (raw to processed)
+- Pepper (fresh habanero/rodo): ₦3,500–₦10,000+/kg
+- Soybean: ₦2,500–₦4,000/kg
+
+Return exactly this JSON shape (array of 8 objects):
 [
-  {"crop":"Maize","price":320,"trend":"up","unit":"kg"},
-  {"crop":"Cassava","price":185,"trend":"stable","unit":"kg"},
-  {"crop":"Tomato","price":480,"trend":"down","unit":"kg"},
-  {"crop":"Yam","price":950,"trend":"up","unit":"kg"},
-  {"crop":"Rice","price":1200,"trend":"stable","unit":"kg"},
-  {"crop":"Groundnut","price":760,"trend":"up","unit":"kg"},
-  {"crop":"Pepper","price":1400,"trend":"down","unit":"kg"},
-  {"crop":"Soybean","price":580,"trend":"stable","unit":"kg"}
+  {"crop":"Maize","price":850,"trend":"up","unit":"kg"},
+  {"crop":"Cassava","price":224,"trend":"stable","unit":"kg"},
+  {"crop":"Tomato","price":1600,"trend":"up","unit":"kg"},
+  {"crop":"Yam","price":1100,"trend":"stable","unit":"kg"},
+  {"crop":"Rice","price":1800,"trend":"up","unit":"kg"},
+  {"crop":"Groundnut","price":4000,"trend":"up","unit":"kg"},
+  {"crop":"Pepper","price":5500,"trend":"down","unit":"kg"},
+  {"crop":"Soybean","price":3000,"trend":"stable","unit":"kg"}
 ]
-Prices should be realistic current Naira prices per kg for ${location}.
-trend must be: up, down, or stable.`;
+Adjust prices to reflect ${location}'s local market conditions.
+trend must be one of: up, down, stable.`;
 
   const raw = await askGroq(system, `Give current crop prices for ${location}, Nigeria`, 400);
   try {
