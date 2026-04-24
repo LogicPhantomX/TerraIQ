@@ -92,36 +92,114 @@ export default function ProfilePage() {
       return;
     }
     setGpsLoading(true);
+    toast.loading("Getting your GPS coordinates...", { id: "gps" });
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+        const { latitude, longitude } = pos.coords;
+        toast.loading("Looking up your location...", { id: "gps" });
+
+        // ── Reverse-geocoding helpers ─────────────────────────────────
+
+        const tryNominatim = async () => {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=jsonv2&zoom=10&addressdetails=1`,
+            { headers: { "Accept-Language": "en", "User-Agent": "TerraIQ-App/2.0 (contact@terraiq.app)" } }
           );
-          const data = await res.json();
-          const addr = data.address ?? {};
-          // Extract city and state from reverse geocode
-          const city  = addr.city ?? addr.town ?? addr.village ?? addr.county ?? "";
-          const rawState = addr.state ?? "";
-          const state = normaliseState(rawState);
+          if (!r.ok) throw new Error("Nominatim failed");
+          const d = await r.json();
+          const a = d.address ?? {};
+          const city  = a.city ?? a.town ?? a.municipality ?? a.village ?? a.suburb ?? a.county ?? "";
+          const state = a.state ?? a["ISO3166-2-lvl4"] ?? "";
+          if (!state) throw new Error("No state from Nominatim");
+          return { city, state };
+        };
+
+        const tryBigDataCloud = async () => {
+          const r = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          if (!r.ok) throw new Error("BigDataCloud failed");
+          const d = await r.json();
+          const city  = d.city ?? d.locality ?? d.localityInfo?.administrative?.[3]?.name ?? "";
+          const state = d.principalSubdivision ?? d.countryName ?? "";
+          if (!state) throw new Error("No state from BigDataCloud");
+          return { city, state };
+        };
+
+        const tryGeoApify = async () => {
+          // Free tier — no key required for basic reverse geocoding
+          const r = await fetch(
+            `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&lang=en&apiApiKey=free`
+          );
+          if (!r.ok) throw new Error("Geoapify failed");
+          const d = await r.json();
+          const props = d.features?.[0]?.properties ?? {};
+          const city  = props.city ?? props.town ?? props.village ?? props.suburb ?? "";
+          const state = props.state ?? props.county ?? "";
+          if (!state) throw new Error("No state from Geoapify");
+          return { city, state };
+        };
+
+        const tryPositionStack = async () => {
+          // Uses ipinfo as last resort — works purely on IP, no GPS needed
+          const r = await fetch(`https://ipinfo.io/json?token=`);
+          if (!r.ok) throw new Error("ipinfo failed");
+          const d = await r.json();
+          const parts = (d.city ?? "").split(",");
+          return {
+            city:  parts[0]?.trim() ?? d.city ?? "",
+            state: d.region ?? "",
+          };
+        };
+
+        let resolved = null;
+        for (const fn of [tryNominatim, tryBigDataCloud, tryGeoApify, tryPositionStack]) {
+          try {
+            const result = await fn();
+            if (result.state) { resolved = result; break; }
+          } catch {
+            // silently try next
+          }
+        }
+
+        toast.dismiss("gps");
+        setGpsLoading(false);
+
+        if (resolved?.state) {
+          const state = normaliseState(resolved.state);
+          const city  = resolved.city;
           if (state) {
             setForm(p => ({ ...p, region: state, city }));
-            toast.success(`Location detected: ${city ? city + ", " : ""}${state}`);
+            toast.success(`📍 Location detected: ${city ? city + ", " : ""}${state}`);
           } else {
-            toast.error("Could not detect your Nigerian state. Please select manually.");
+            // We got coordinates and a place name but couldn't match a Nigerian state
+            // Still show the city so user only needs to fix state
+            setForm(p => ({ ...p, city: resolved.city }));
+            toast.error("Detected your area but couldn't match your Nigerian state — please select it manually.");
           }
-        } catch {
-          toast.error("Could not fetch location details. Check your internet.");
+        } else {
+          toast.error("Could not look up your location. Please select your state and city manually.");
         }
-        setGpsLoading(false);
       },
       (err) => {
+        toast.dismiss("gps");
         setGpsLoading(false);
-        if (err.code === 1) toast.error("Location permission denied. Please allow location access.");
-        else toast.error("Could not get your location. Try again.");
+        if (err.code === 1) {
+          toast.error("Location access denied. Go to your browser/app settings and allow location permission for this site, then try again.");
+        } else if (err.code === 2) {
+          toast.error("GPS signal weak. Try moving to an open area, or enable Wi-Fi to help with location.");
+        } else if (err.code === 3) {
+          toast.error("Location timed out. Check that GPS is enabled in your phone settings and try again.");
+        } else {
+          toast.error("Could not get your location. Please select your state and city manually.");
+        }
       },
-      { timeout: 10000, maximumAge: 60000 }
+      {
+        timeout: 40000,           // 40s — Nigerian mobile networks can be slow
+        maximumAge: 300000,       // Accept cached position up to 5 minutes old
+        enableHighAccuracy: false, // false = uses cell tower + Wi-Fi (faster, no satellite wait)
+      }
     );
   };
 
@@ -192,12 +270,20 @@ export default function ProfilePage() {
           <button
             onClick={detectLocation}
             disabled={gpsLoading}
-            className="w-full flex items-center justify-center gap-2 border border-terra text-terra h-11 rounded-xl text-sm font-bold hover:bg-terra hover:text-white transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 border border-terra text-terra h-11 rounded-xl text-sm font-bold hover:bg-terra hover:text-white transition-colors disabled:opacity-60"
           >
             {gpsLoading ? (
-              <><div className="w-4 h-4 border-2 border-terra border-t-transparent rounded-full animate-spin" /> Detecting location...</>
+              <>
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Detecting your location...
+              </>
             ) : (
-              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M12 1v2M12 21v2M1 12h2M21 12h2"/></svg> Use my current location</>
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+                </svg>
+                Use my current location (GPS)
+              </>
             )}
           </button>
           <p className="text-ink-500 dark:text-gray-500 text-xs -mt-2 text-center">or select manually below</p>
