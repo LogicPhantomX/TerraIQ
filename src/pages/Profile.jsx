@@ -17,12 +17,43 @@ const LANGUAGES = [
   { code:"ig", label:"Igbo"     },
 ];
 
+// Nigerian state name normaliser — maps GPS-returned state names to our dropdown values
+const STATE_MAP = {
+  "abia":              "Abia",         "adamawa":          "Adamawa",
+  "akwa ibom":         "Akwa Ibom",    "anambra":          "Anambra",
+  "bauchi":            "Bauchi",       "bayelsa":          "Bayelsa",
+  "benue":             "Benue",        "borno":            "Borno",
+  "cross river":       "Cross River",  "delta":            "Delta",
+  "ebonyi":            "Ebonyi",       "edo":              "Edo",
+  "ekiti":             "Ekiti",        "enugu":            "Enugu",
+  "federal capital territory": "FCT",  "fct":              "FCT",
+  "abuja":             "FCT",          "gombe":            "Gombe",
+  "imo":               "Imo",          "jigawa":           "Jigawa",
+  "kaduna":            "Kaduna",       "kano":             "Kano",
+  "katsina":           "Katsina",      "kebbi":            "Kebbi",
+  "kogi":              "Kogi",         "kwara":            "Kwara",
+  "lagos":             "Lagos",        "nasarawa":         "Nasarawa",
+  "niger":             "Niger",        "ogun":             "Ogun",
+  "ondo":              "Ondo",         "osun":             "Osun",
+  "oyo":               "Oyo",          "plateau":          "Plateau",
+  "rivers":            "Rivers",       "sokoto":           "Sokoto",
+  "taraba":            "Taraba",       "yobe":             "Yobe",
+  "zamfara":           "Zamfara",
+};
+
+function normaliseState(raw) {
+  if (!raw) return "";
+  const cleaned = raw.toLowerCase().replace(/\s+state$/i, "").trim();
+  return STATE_MAP[cleaned] ?? raw;
+}
+
 const iClass = "w-full bg-white dark:bg-dark-mid rounded-xl px-4 h-12 text-ink dark:text-white border border-deep-light dark:border-dark-light focus:border-terra outline-none text-sm shadow-sm";
 
 export default function ProfilePage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
   const [userId,  setUserId]  = useState(null);
   const [form, setForm] = useState({
     full_name:"", farm_name:"", region:"", city:"", language:"en"
@@ -54,6 +85,45 @@ export default function ProfilePage() {
       setLoading(false);
     })();
   }, []);
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+          const addr = data.address ?? {};
+          // Extract city and state from reverse geocode
+          const city  = addr.city ?? addr.town ?? addr.village ?? addr.county ?? "";
+          const rawState = addr.state ?? "";
+          const state = normaliseState(rawState);
+          if (state) {
+            setForm(p => ({ ...p, region: state, city }));
+            toast.success(`Location detected: ${city ? city + ", " : ""}${state}`);
+          } else {
+            toast.error("Could not detect your Nigerian state. Please select manually.");
+          }
+        } catch {
+          toast.error("Could not fetch location details. Check your internet.");
+        }
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsLoading(false);
+        if (err.code === 1) toast.error("Location permission denied. Please allow location access.");
+        else toast.error("Could not get your location. Try again.");
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   const save = async () => {
     if (!userId) return;
@@ -118,6 +188,19 @@ export default function ProfilePage() {
           <p className="text-ink-500 dark:text-gray-400 text-sm">
             {t("profile.locationDesc")}
           </p>
+          {/* GPS detect button */}
+          <button
+            onClick={detectLocation}
+            disabled={gpsLoading}
+            className="w-full flex items-center justify-center gap-2 border border-terra text-terra h-11 rounded-xl text-sm font-bold hover:bg-terra hover:text-white transition-colors disabled:opacity-50"
+          >
+            {gpsLoading ? (
+              <><div className="w-4 h-4 border-2 border-terra border-t-transparent rounded-full animate-spin" /> Detecting location...</>
+            ) : (
+              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M12 1v2M12 21v2M1 12h2M21 12h2"/></svg> Use my current location</>
+            )}
+          </button>
+          <p className="text-ink-500 dark:text-gray-500 text-xs -mt-2 text-center">or select manually below</p>
           <LocationPicker
             state={form.region} city={form.city}
             onStateChange={v => setForm(p=>({...p, region:v}))}

@@ -92,7 +92,7 @@ useEffect(() => {
       {/* Greeting */}
       <div className="mb-6">
         <h1 className="text-ink dark:text-white text-3xl font-black">
-          {t(getGreetingKey())}{getDisplayName(profile) ? `, ${getDisplayName(profile)}` : ""} 👋
+          {t(getGreetingKey())}{getDisplayName(profile) ? `, ${getDisplayName(profile)}` : ""}
         </h1>
         <p className="text-ink-500 dark:text-gray-400 mt-1">{profile?.farm_name ? `${profile.farm_name} · ` : ""}{profile?.city && profile?.region ? `${profile.city}, ${profile.region}` : profile?.region ?? ""}</p>
       </div>

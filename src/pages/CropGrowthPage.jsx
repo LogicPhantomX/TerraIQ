@@ -580,12 +580,19 @@ export default function CropGrowthPage() {
                 </p>
                 {harvestDays !== null && harvestDays > 0 ? (
                   <>
-                    <p style={{ color: "white", fontSize: 40, fontWeight: 900, lineHeight: 1, marginBottom: 4 }}>
-                      {harvestDays}
-                    </p>
-                    <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 700 }}>
-                      {t("growth.daysToHarvest")}
-                    </p>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+                      <p style={{ color: "white", fontSize: 40, fontWeight: 900, lineHeight: 1 }}>
+                        {harvestDays}
+                      </p>
+                      <div>
+                        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 700 }}>
+                          {t("growth.daysToHarvest")}
+                        </p>
+                        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 500, marginTop: 1 }}>
+                          ≈ {(harvestDays / 30.44).toFixed(1)} months
+                        </p>
+                      </div>
+                    </div>
                     <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
                       <IconWheat size={14} color="rgba(255,255,255,0.65)" /> {t("growth.harvestOn")} <strong style={{ color: "white" }}>{formatDate(result.harvest_date)}</strong>
                     </p>
@@ -602,6 +609,9 @@ export default function CropGrowthPage() {
                     <p style={{ color: "white", fontSize: 28, fontWeight: 900 }}>
                       {result.total_days_to_harvest} {t("growth.days")}
                     </p>
+                    <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>
+                      ≈ {(result.total_days_to_harvest / 30.44).toFixed(1)} months
+                    </p>
                     <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 4 }}>
                       {t("growth.totalGrowthTime")} · {t("growth.harvest")}: {formatDate(result.harvest_date)}
                     </p>
@@ -614,7 +624,7 @@ export default function CropGrowthPage() {
                     background: "rgba(255,255,255,0.15)", color: "white",
                     padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700
                   }}>
-                    {result.total_days_to_harvest} {t("growth.days")}
+                    {result.total_days_to_harvest} {t("growth.days")} · {(result.total_days_to_harvest / 30.44).toFixed(1)} mo
                   </span>
                   <span style={{
                     background: result.season_suitability === "excellent" || result.season_suitability === "good"
