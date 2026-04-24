@@ -62,11 +62,21 @@ Respond ONLY with valid JSON. No markdown. No backticks. No extra text outside t
   "confidence": 90,
   "severity": "none",
   "severity_explanation": "Why this severity",
-  "immediate_action": "Most urgent step right now",
-  "steps": ["Step 1", "Step 2", "Step 3"],
-  "local_products": [{"name": "Product", "price_naira": 2000, "where": "Local market"}],
-  "organic_option": "Local organic treatment if applicable",
-  "prevention": "How to prevent this problem"
+  "immediate_action": "Most urgent single action the farmer must do TODAY — be very specific (e.g. 'Remove and burn all infected leaves immediately before 6pm to stop the disease from spreading to healthy plants')",
+  "steps": [
+    "Day 1 — Immediate: Specific urgent action with exact detail",
+    "Day 2-3 — Containment: Follow-up step with exact quantities or method",
+    "Days 4-7 — Treatment: First treatment application with dosage and how to apply it",
+    "Week 2 — Monitoring: What signs to look for and how to check if treatment is working",
+    "Week 3 — Second treatment: Repeat or adjusted treatment based on progress",
+    "Ongoing — Prevention: Long-term management practice to keep the crop healthy"
+  ],
+  "local_products": [
+    {"name": "Product name", "price_naira": 2000, "where": "Specific agro-dealer or market type in Nigeria", "how_to_use": "Exact dosage and application instructions"},
+    {"name": "Alternative product", "price_naira": 1500, "where": "Where to find it", "how_to_use": "How and when to apply"}
+  ],
+  "organic_option": "Specific local organic or traditional remedy with exact preparation steps (e.g. 'Boil 10 neem leaves in 2L water for 20 minutes, cool, strain and spray on affected leaves every 2 days')",
+  "prevention": "List 3-4 specific prevention measures: crop rotation advice, spacing, soil health, and early warning signs to watch for"
 }
 
 If the image does not contain a plant, set "not_a_plant": true and "message": "Ask the farmer to take a photo of a plant."
@@ -89,7 +99,7 @@ is_healthy must be false for weeds regardless of how green they look.`;
     },
     body: JSON.stringify({
       model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-      max_tokens: 1200,
+      max_tokens: 2000,
       temperature: 0.1,
       messages: [
         { role: "system", content: system },
@@ -99,7 +109,7 @@ is_healthy must be false for weeds regardless of how green they look.`;
             ...imageContent,
             {
               type: "text",
-              text: `Identify this plant. Farmer is in ${locationStr}. Look carefully at the actual visual features — leaf shape, texture, colour, structure. Identify exactly what you see, not what is most common in Nigeria. Respond in ${langName}.`
+              text: `Identify this plant. Farmer is in ${locationStr}. Look carefully at the actual visual features — leaf shape, texture, colour, structure. Identify exactly what you see, not what is most common in Nigeria. Give detailed step-by-step advice with at least 6 steps. Respond in ${langName}.`
             }
           ]
         }
@@ -160,7 +170,7 @@ async function scanWithFallback(captures, system, locationStr, langName, GROQ_KE
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
     body: JSON.stringify({
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      max_tokens: 1200,
+      max_tokens: 2000,
       temperature: 0.1,
       messages: [
         { role: "system", content: system },
@@ -168,7 +178,7 @@ async function scanWithFallback(captures, system, locationStr, langName, GROQ_KE
           role: "user",
           content: [
             ...imageContent,
-            { type: "text", text: `Identify this plant. Farmer is in ${locationStr}. Respond in ${langName}.` }
+            { type: "text", text: `Identify this plant. Farmer is in ${locationStr}. Give detailed 6-step treatment advice. Respond in ${langName}.` }
           ]
         }
       ]
