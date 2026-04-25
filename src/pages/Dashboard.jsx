@@ -128,7 +128,7 @@ useEffect(() => {
 
       {/* Weather + quick actions */}
       <div className="grid md:grid-cols-2 gap-5 mb-6">
-        <WeatherWidget city={profile?.city} region={profile?.region} />
+        <WeatherWidget city={profile?.city} region={profile?.region} gpsLat={profile?.gps_lat} gpsLon={profile?.gps_lon} />
 
         <div className="grid grid-cols-2 gap-3">
           {[
