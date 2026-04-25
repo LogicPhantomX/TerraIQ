@@ -56,7 +56,8 @@ export default function ProfilePage() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userId,  setUserId]  = useState(null);
   const [form, setForm] = useState({
-    full_name:"", farm_name:"", region:"", city:"", language:"en"
+    full_name:"", farm_name:"", region:"", city:"", language:"en",
+    gps_lat: null, gps_lon: null,
   });
 
   useEffect(() => {
@@ -76,6 +77,8 @@ export default function ProfilePage() {
           region:    data.region   ?? "",
           city:      data.city     ?? "",
           language:  data.language ?? "en",
+          gps_lat:   data.gps_lat  ?? null,
+          gps_lon:   data.gps_lon  ?? null,
         });
         // Apply saved language on page load
         if (data.language) {
@@ -170,15 +173,15 @@ export default function ProfilePage() {
           const state = normaliseState(resolved.state);
           const city  = resolved.city;
           if (state) {
-            setForm(p => ({ ...p, region: state, city }));
+            setForm(p => ({ ...p, region: state, city, gps_lat: latitude, gps_lon: longitude }));
             toast.success(`📍 Location detected: ${city ? city + ", " : ""}${state}`);
           } else {
-            // We got coordinates and a place name but couldn't match a Nigerian state
-            // Still show the city so user only needs to fix state
-            setForm(p => ({ ...p, city: resolved.city }));
+            setForm(p => ({ ...p, city: resolved.city, gps_lat: latitude, gps_lon: longitude }));
             toast.error("Detected your area but couldn't match your Nigerian state — please select it manually.");
           }
         } else {
+          // Even if reverse-geocoding failed, save the raw coords so weather still works
+          setForm(p => ({ ...p, gps_lat: latitude, gps_lon: longitude }));
           toast.error("Could not look up your location. Please select your state and city manually.");
         }
       },
@@ -212,6 +215,8 @@ export default function ProfilePage() {
       region:    form.region,
       city:      form.city,
       language:  form.language,
+      gps_lat:   form.gps_lat,
+      gps_lon:   form.gps_lon,
     }).eq("id", userId);
 
     if (error) {
