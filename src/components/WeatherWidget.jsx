@@ -44,35 +44,40 @@ function getCoords(region) {
   return STATE_COORDS[key] || { lat:9.08, lon:7.40 };
 }
 
-export default function WeatherWidget({ city, region }) {
+export default function WeatherWidget({ city, region, gpsLat, gpsLon }) {
   const { t } = useTranslation();
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loc,     setLoc]     = useState("");
 
   useEffect(() => {
-    if (!city && !region) { setLoading(false); return; }
+    if (!city && !region && !gpsLat) { setLoading(false); return; }
     (async () => {
       try {
         let coords     = getCoords(region);
         let displayLoc = region || "Nigeria";
 
-
-        // Open-Meteo geocoding — free, no key needed
-        if (city?.trim()) {
+        // Priority 1: Use exact GPS coordinates from the farmer's GPS detection
+        // This is the most accurate — skips geocoding entirely
+        if (gpsLat && gpsLon) {
+          coords     = { lat: gpsLat, lon: gpsLon };
+          displayLoc = city ? `${city}, ${region || "Nigeria"}` : region || "Nigeria";
+        }
+        // Priority 2: Geocode the city name via Open-Meteo (only if no GPS coords)
+        else if (city?.trim()) {
           try {
             const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city + " Nigeria")}&count=1&language=en&format=json`;
             const geo = await fetch(geoUrl);
-            const gd = await geo.json();
+            const gd  = await geo.json();
             if (gd.results?.[0]) {
-              coords = { lat: gd.results[0].latitude, lon: gd.results[0].longitude };
+              coords     = { lat: gd.results[0].latitude, lon: gd.results[0].longitude };
               displayLoc = `${city}, ${region || "Nigeria"}`;
-            } else {
             }
-          } catch (geoErr) {
-            // use state coords
+          } catch {
+            // fall through to state coords
           }
         }
+
         setLoc(displayLoc);
 
         // Open-Meteo weather — free, no key, works anywhere
@@ -107,7 +112,7 @@ export default function WeatherWidget({ city, region }) {
         setLoading(false);
       }
     })();
-  }, [city, region]);
+  }, [city, region, gpsLat, gpsLon]);
 
   if (loading) return (
     <div className="bg-white dark:bg-dark-surface rounded-2xl p-5 border border-deep-light dark:border-dark-light shadow-card animate-pulse">
