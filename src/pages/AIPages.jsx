@@ -12,6 +12,7 @@ import { EmptyHarvests } from "@/components/EmptyState";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import IrrigationPage from "@/pages/IrrigationPage";
+import { fetchSharedPrices, getCachedCropPrice, buildPriceBenchmarkBlock } from "@/lib/marketPrices";
 
 // ─── SOIL ─────────────────────────────────────────────────────────────
 export function SoilPage() {
@@ -344,50 +345,65 @@ export function MarketPage() {
       const region  = profile?.region ?? "Nigeria";
       const langName = { en:"English", yo:"Yoruba", ha:"Hausa", ig:"Igbo" }[lang] ?? "English";
       const langInstr = LANG_INSTR[lang] ?? LANG_INSTR.en;
-
-      // Build location string — primary is the farmer's city
       const primaryLocation = city ? `${city}, ${region}` : region;
+
+      // ── Step 1: Fetch/reuse the same shared prices the dashboard ticker uses ──
+      // This guarantees dashboard and advisor always show consistent prices.
+      toast.loading("Loading verified market prices...", { id: tid });
+      const sharedPrices = await fetchSharedPrices(primaryLocation);
+
+      // Find this specific crop in the shared price list (case-insensitive)
+      const cropLower = crop.toLowerCase();
+      const matchedPrice = sharedPrices.find(p => p.crop.toLowerCase() === cropLower);
+
+      // Build the exact same benchmark block used by the ticker
+      const benchmarkBlock = buildPriceBenchmarkBlock(primaryLocation);
+
+      // If we found the crop in shared prices, pin those exact numbers
+      const cropPricePin = matchedPrice
+        ? `PINNED PRICE FOR ${crop.toUpperCase()}: ₦${matchedPrice.price.toLocaleString()}/kg (range ₦${matchedPrice.min?.toLocaleString()}–₦${matchedPrice.max?.toLocaleString()}/kg, trend: ${matchedPrice.trend}).
+This EXACT price is what the dashboard is showing the farmer. Your current_price_per_kg and primary_market.price_per_kg MUST match ₦${matchedPrice.price.toLocaleString()} (±5% max for market variation).`
+        : "";
+
+      toast.loading("Generating local market advice...", { id: tid });
 
       const system = `You are TerraIQ+, an agricultural market advisor for Nigerian farmers.
 LANGUAGE: ${langInstr}. ALL text in ${langName} except product names, prices, and place names.
 FARMER LOCATION: ${primaryLocation}, Nigeria.
-CURRENT DATE: ${new Date().toLocaleDateString("en-NG", { day:"numeric", month:"long", year:"numeric" })} (${new Date().getFullYear()}).
+CURRENT DATE: ${new Date().toLocaleDateString("en-NG", { day:"numeric", month:"long", year:"numeric" })}.
 
-IMPORTANT — PRICE ACCURACY:
-- All prices MUST reflect actual Nigerian market prices as of ${new Date().getFullYear()}
-- Account for current naira inflation and recent exchange rate changes
-- Do NOT use pre-2025 prices — Nigerian commodity prices have risen significantly
-- Typical 2026 price ranges: Maize ₦400-700/kg, Tomatoes ₦600-1200/kg, Cassava ₦180-350/kg, Rice ₦900-1400/kg, Yam ₦500-900/kg
+${benchmarkBlock}
 
-Give market advice that is SPECIFIC to ${primaryLocation}.
-- Primary prices: give the current price in ${city || region} first
-- Secondary: mention nearby bigger markets like Ibadan, Lagos, Kano, Onitsha as reference
-- Local buyers: name specific market types, agro-dealers, and buying agents in ${city || region}
-- Transport: give practical advice for farmers in ${city || region}
-- Seasonal tips: note if this is the right selling time in ${region} given current ${new Date().toLocaleDateString("en-NG", { month:"long" })} season
+${cropPricePin}
+
+Give market advice SPECIFIC to ${primaryLocation}:
+- Primary prices: ${city || region} market first
+- Secondary: nearby bigger markets (Ibadan, Lagos, Kano, Onitsha, Port Harcourt)
+- Local buyers: specific market names and agro-dealer types in ${city || region}
+- Transport and seasonal tips for ${region} in ${new Date().toLocaleDateString("en-NG", { month:"long" })}
 
 Respond ONLY with valid JSON. No markdown.
 {
-  "current_price_per_kg": 500,
-  "current_price_per_tonne": 500000,
-  "price_trend": "rising / falling / stable",
-  "trend_reason": "string in ${langName} — mention 2026 market conditions",
+  "current_price_per_kg": ${matchedPrice ? matchedPrice.price : 500},
+  "current_price_per_tonne": ${matchedPrice ? matchedPrice.price * 1000 : 500000},
+  "price_trend": "${matchedPrice ? (matchedPrice.trend === "up" ? "rising" : matchedPrice.trend === "down" ? "falling" : "stable") : "stable"}",
+  "trend_reason": "string in ${langName}",
   "primary_market": {
     "name": "specific market name in ${city || region}",
     "location": "${primaryLocation}",
-    "price_per_kg": 500,
+    "price_per_kg": ${matchedPrice ? matchedPrice.price : 500},
     "why_best": "string in ${langName}"
   },
   "secondary_markets": [
-    { "name": "market name", "location": "city", "price_per_kg": 520, "distance_note": "string" },
-    { "name": "market name", "location": "city", "price_per_kg": 480, "distance_note": "string" }
+    { "name": "market name", "location": "city", "price_per_kg": 0, "distance_note": "string" },
+    { "name": "market name", "location": "city", "price_per_kg": 0, "distance_note": "string" }
   ],
-  "best_time_to_sell": "string in ${langName} — specific to current season and month",
+  "best_time_to_sell": "string in ${langName}",
   "negotiation_tips": ["tip in ${langName}", "tip", "tip"],
-  "local_buyers": ["buyer type in ${primaryLocation}", "buyer type", "buyer type"],
-  "transport_advice": "string in ${langName} for farmers in ${primaryLocation}",
-  "processing_option": "string in ${langName} — can they add value to get a better price?",
-  "price_forecast_30_days": "string in ${langName} — forecast for next 30 days from ${new Date().toLocaleDateString("en-NG", { month:"long", year:"numeric" })}"
+  "local_buyers": ["buyer type", "buyer type", "buyer type"],
+  "transport_advice": "string in ${langName}",
+  "processing_option": "string in ${langName}",
+  "price_forecast_30_days": "string in ${langName}"
 }`;
 
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -398,7 +414,7 @@ Respond ONLY with valid JSON. No markdown.
           max_tokens: 1400,
           messages:[
             { role:"system", content:system },
-            { role:"user",   content:`I have ${qty || "some"} kg of ${crop} to sell. I am in ${primaryLocation}. Give me city-specific market advice including where to sell in ${city || region} and nearby markets. Current date: ${new Date().toLocaleDateString("en-NG", { day:"numeric", month:"long", year:"numeric" })}. Use ${new Date().getFullYear()} Nigerian market prices — account for current naira rates and inflation. Language: ${langName}.` },
+            { role:"user",   content:`I have ${qty || "some"} kg of ${crop} to sell in ${primaryLocation}. Give local market advice. Language: ${langName}.` },
           ],
         }),
       });
@@ -407,6 +423,17 @@ Respond ONLY with valid JSON. No markdown.
       const data = await res.json();
       const raw  = data.choices[0].message.content;
       const parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+
+      // ── Safety pin: if AI drifted from the shared price, correct it ──
+      if (matchedPrice) {
+        const allowedVariance = matchedPrice.price * 0.05; // 5% tolerance
+        if (Math.abs(parsed.current_price_per_kg - matchedPrice.price) > allowedVariance) {
+          parsed.current_price_per_kg  = matchedPrice.price;
+          parsed.current_price_per_tonne = matchedPrice.price * 1000;
+          if (parsed.primary_market) parsed.primary_market.price_per_kg = matchedPrice.price;
+        }
+      }
+
       setResult(parsed);
       toast.dismiss(tid);
       toast.success("Market analysis ready!");
